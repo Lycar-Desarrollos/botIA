@@ -1,0 +1,18 @@
+{
+  "name": "bot-whatsapp-renta-autos",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp con IA para CHIP RENT A CAR",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "baileys": "^7.0.0-rc13",
+    "dotenv": "^16.5.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
