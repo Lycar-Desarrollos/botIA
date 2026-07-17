@@ -1,5 +1,5 @@
 // ============================================================
-// 🤖 BOT DE WHATSAPP CON IA - RENTA DE AUTOS
+// 🤖 BOT DE WHATSAPP CON IA - CHIP RENT A CAR
 // ============================================================
 // Ejecutar: npm start
 // Primera vez: escanear QR con el celular del chip dedicado
@@ -14,6 +14,7 @@ import makeWASocket, {
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import qrcode from 'qrcode-terminal';
 import { CONFIG } from './config.js';
+import fs from 'fs';
 
 // ─── Validar API Key ───
 if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'PEGA_TU_API_KEY_AQUI') {
@@ -29,40 +30,277 @@ if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'PEGA_TU_API_K
 // ─── Inicializar Gemini ───
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ─── Almacén de historial de conversaciones ───
+// ─── Almacén de conversaciones ───
 const conversaciones = new Map();
 
-// ─── Rate limiter simple ───
+// ─── Rate limiter ───
 let respuestasEnUltimoMinuto = 0;
-setInterval(() => {
-  respuestasEnUltimoMinuto = 0;
-}, 60_000);
+setInterval(() => { respuestasEnUltimoMinuto = 0; }, 60_000);
 
-// ─── Limpieza de conversaciones viejas (cada 30 min) ───
+// ─── Limpieza cada 30 min ───
 setInterval(() => {
   const ahora = Date.now();
   for (const [jid, data] of conversaciones) {
-    // Si no hay mensajes o el último fue hace más de 2 horas, limpiar
-    if (!data.length || (data._lastActivity && ahora - data._lastActivity > 2 * 60 * 60 * 1000)) {
+    if (ahora - data.lastActivity > 2 * 60 * 60 * 1000) {
       conversaciones.delete(jid);
     }
   }
   console.log(`🧹 Limpieza: ${conversaciones.size} conversaciones activas`);
 }, 30 * 60 * 1000);
 
-// ─── Construir el prompt del sistema con la info del negocio ───
+// ─── Leads ───
+const LEADS_FILE = 'leads.json';
+function cargarLeads() {
+  try { return JSON.parse(fs.readFileSync(LEADS_FILE, 'utf-8')); }
+  catch { return []; }
+}
+function guardarLead(lead) {
+  const leads = cargarLeads();
+  leads.push(lead);
+  fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf-8');
+  console.log(`📋 Nuevo lead guardado: ${lead.nombre} - ${lead.auto}`);
+}
+
+// ============================================================
+// 📋 MENÚS
+// ============================================================
+
+const MENU_PRINCIPAL = `¡Hola! 👋 Bienvenido a *CHIP RENT A CAR* 🚗
+Renta de autos en Mérida, Yucatán
+
+¿En qué te puedo ayudar?
+
+*1.* 🚗 Ver autos y precios
+*2.* 🛡️ Seguros y coberturas
+*3.* 📋 Requisitos para rentar
+*4.* 📍 Ubicación y contacto
+*5.* 📅 Quiero reservar
+*6.* 💬 Otra pregunta
+
+_Escribe el número de la opción_ ⬇️`;
+
+const MENU_AUTOS = `🚗 *PRECIOS DE RENTA POR DÍA*
+
+*1.* Básico (sedán económico) — *$700/día*
+*2.* Confort (sedán amplio) — *$800/día*
+*3.* SUV de 5 pasajeros — *$1,200/día*
+*4.* SUV de 7 pasajeros — *$1,200/día*
+*5.* Minivan de 8 pasajeros — *$1,500/día*
+*6.* Van de 12-15 pasajeros — *$2,300/día*
+
+Todos incluyen seguro amplio y km libre en la península 🏖️
+
+_Escribe *5* o *reservar* para apartar tu auto_
+_Escribe *0* para volver al menú_`;
+
+const MENU_SEGUROS = `🛡️ *SEGUROS Y COBERTURAS*
+
+✅ *Seguro amplio INCLUIDO:*
+• 10% de deducible
+• Cubre: robo, pérdida total, colisión
+• Daños a terceros
+• Km libre en Campeche, Quintana Roo y toda la península
+
+💎 *Seguro Full Cover (opcional):*
+• Deducible baja a *0%*
+• Cubre hasta vidrio, cristal o abolladura
+• Si pasa algo, *no pagas nada*
+
+💰 *Costo del Full Cover por día:*
+• Básico: $400
+• Confort: $500
+• SUV de 7: $500
+• Minivan de 8: $600
+• Van de 12-15: $1,000
+
+_Escribe *5* o *reservar* para apartar_
+_Escribe *0* para volver al menú_`;
+
+const MENU_REQUISITOS = `📋 *REQUISITOS PARA RENTAR*
+
+✈️ *Si vienes de fuera (turista):*
+• INE o Pasaporte
+• Licencia de conducir vigente
+• Número de vuelo de llegada
+
+🏠 *Si vives en Mérida:*
+• INE
+• Licencia de conducir vigente
+• Comprobante de domicilio a tu nombre
+
+_Escribe *5* o *reservar* para apartar_
+_Escribe *0* para volver al menú_`;
+
+const MENU_UBICACION = `📍 *UBICACIÓN Y CONTACTO*
+
+📌 Manuel Crecencio Rejón, Mérida, Yucatán, CP 97255
+🕐 Abierto *24/7* los 365 días del año
+
+📞 Asesores:
+• ${CONFIG.telefonos.asesor1}
+• ${CONFIG.telefonos.asesor2}
+
+🌐 ${CONFIG.web}
+📧 ${CONFIG.email}
+
+🚗 *Entregamos en tu hotel y en el Tren Maya*
+
+_Escribe *0* para volver al menú_`;
+
+const MENU_ELEGIR_AUTO = `🚗 *¿Qué auto te interesa?*
+
+*1.* Básico (sedán económico) — *$700/día*
+*2.* Confort (sedán amplio) — *$800/día*
+*3.* SUV de 5 pasajeros — *$1,200/día*
+*4.* SUV de 7 pasajeros — *$1,200/día*
+*5.* Minivan de 8 pasajeros — *$1,500/día*
+*6.* Van de 12-15 pasajeros — *$2,300/día*
+
+_Escribe el número o el nombre del auto_
+_Escribe *0* para cancelar_`;
+
+// ============================================================
+// 🔧 HELPERS PARA EL FLUJO DE RESERVA
+// ============================================================
+
+// Detectar auto por número O por nombre
+function detectarAuto(texto) {
+  const t = texto.trim().toLowerCase();
+
+  // Por número
+  const num = parseInt(t, 10);
+  if (num >= 1 && num <= 6) return CONFIG.autos[num - 1];
+
+  // Por nombre (flexible)
+  if (t.includes('basic') || t.includes('básic') || t.includes('basico') || t.includes('económi') || t.includes('economi') || t.includes('sedan')) {
+    return CONFIG.autos[0]; // Básico
+  }
+  if (t.includes('confor') || t.includes('comfort') || t.includes('amplio')) {
+    return CONFIG.autos[1]; // Confort
+  }
+  if (t.includes('suv') && (t.includes('5') || t.includes('cinco'))) {
+    return CONFIG.autos[2]; // SUV 5
+  }
+  if (t.includes('suv') && (t.includes('7') || t.includes('siete'))) {
+    return CONFIG.autos[3]; // SUV 7
+  }
+  if (t.includes('suv')) {
+    return CONFIG.autos[2]; // SUV default
+  }
+  if (t.includes('minivan') || t.includes('mini van') || t.includes('8') && t.includes('pasaj')) {
+    return CONFIG.autos[4]; // Minivan
+  }
+  if (t.includes('van') || t.includes('12') || t.includes('15')) {
+    return CONFIG.autos[5]; // Van
+  }
+  return null;
+}
+
+// Obtener precio de seguro Full Cover según el auto
+function precioFullCover(auto) {
+  const nombre = auto.tipo.toLowerCase();
+  if (nombre.includes('básico') || nombre.includes('basico')) return CONFIG.seguros[0];
+  if (nombre.includes('confort')) return CONFIG.seguros[1];
+  if (nombre.includes('suv')) return CONFIG.seguros[2]; // SUV 7 = $500
+  if (nombre.includes('minivan')) return CONFIG.seguros[3];
+  if (nombre.includes('van')) return CONFIG.seguros[4];
+  return CONFIG.seguros[0]; // default
+}
+
+// Parsear fechas naturales en español
+// Acepta: "del 11 al 15 de julio", "11 al 15 julio", "julio 11-15",
+//         "2026-07-11 a 2026-07-15", "11/07 al 15/07", etc.
+const MESES = {
+  enero: 0, ene: 0,
+  febrero: 1, feb: 1,
+  marzo: 2, mar: 2,
+  abril: 3, abr: 3,
+  mayo: 4, may: 4,
+  junio: 5, jun: 5,
+  julio: 6, jul: 6,
+  agosto: 7, ago: 7,
+  septiembre: 8, sep: 8, sept: 8,
+  octubre: 9, oct: 9,
+  noviembre: 10, nov: 10,
+  diciembre: 11, dic: 11,
+};
+
+function parsearFechas(texto) {
+  const t = texto.trim().toLowerCase();
+  const ahora = new Date();
+  const anioActual = ahora.getFullYear();
+
+  // Formato ISO: 2026-07-11 a 2026-07-15
+  const isoMatch = t.match(/(\d{4})-(\d{1,2})-(\d{1,2})\s*(?:a|al|-)\s*(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const inicio = new Date(+isoMatch[1], +isoMatch[2] - 1, +isoMatch[3]);
+    const fin = new Date(+isoMatch[4], +isoMatch[5] - 1, +isoMatch[6]);
+    if (!isNaN(inicio) && !isNaN(fin) && fin > inicio) return { inicio, fin };
+  }
+
+  // "del 11 al 15 de julio", "11 al 15 de julio", "11 a 15 julio"
+  const mesNombre = Object.keys(MESES).join('|');
+  const regNatural = new RegExp(
+    `(?:del?\\s+)?(\\d{1,2})\\s*(?:al?|-)\\s*(\\d{1,2})\\s*(?:de\\s+)?(${mesNombre})(?:\\s+(\\d{4}))?`,
+    'i'
+  );
+  const natMatch = t.match(regNatural);
+  if (natMatch) {
+    const dia1 = +natMatch[1];
+    const dia2 = +natMatch[2];
+    const mes = MESES[natMatch[3].toLowerCase()];
+    const anio = natMatch[4] ? +natMatch[4] : anioActual;
+    const inicio = new Date(anio, mes, dia1);
+    const fin = new Date(anio, mes, dia2);
+    if (!isNaN(inicio) && !isNaN(fin) && fin > inicio) return { inicio, fin };
+  }
+
+  // "julio 11 al 15", "julio 11-15"
+  const regMesPrimero = new RegExp(
+    `(${mesNombre})\\s+(\\d{1,2})\\s*(?:al?|-)\\s*(\\d{1,2})(?:\\s+(\\d{4}))?`,
+    'i'
+  );
+  const mesPrimMatch = t.match(regMesPrimero);
+  if (mesPrimMatch) {
+    const mes = MESES[mesPrimMatch[1].toLowerCase()];
+    const dia1 = +mesPrimMatch[2];
+    const dia2 = +mesPrimMatch[3];
+    const anio = mesPrimMatch[4] ? +mesPrimMatch[4] : anioActual;
+    const inicio = new Date(anio, mes, dia1);
+    const fin = new Date(anio, mes, dia2);
+    if (!isNaN(inicio) && !isNaN(fin) && fin > inicio) return { inicio, fin };
+  }
+
+  // dd/mm al dd/mm
+  const regSlash = t.match(/(\d{1,2})\/(\d{1,2})\s*(?:al?|-)\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/);
+  if (regSlash) {
+    const anio = regSlash[5] ? +regSlash[5] : anioActual;
+    const inicio = new Date(anio, +regSlash[2] - 1, +regSlash[1]);
+    const fin = new Date(anio, +regSlash[4] - 1, +regSlash[3]);
+    if (!isNaN(inicio) && !isNaN(fin) && fin > inicio) return { inicio, fin };
+  }
+
+  return null;
+}
+
+function formatFecha(date) {
+  const dia = date.getDate();
+  const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  return `${dia} de ${meses[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function diasEntre(inicio, fin) {
+  return Math.ceil(Math.abs(fin - inicio) / (1000 * 60 * 60 * 24));
+}
+
+// ============================================================
+// 🤖 CONFIGURACIÓN DE IA
+// ============================================================
+
 function construirPromptSistema() {
-  const autosTexto = CONFIG.autos
-    .map(a => `• ${a.tipo}: ${a.precioDia}`)
-    .join('\n');
-
-  const requisitosTexto = CONFIG.requisitos
-    .map(r => `• ${r}`)
-    .join('\n');
-
-  const serviciosTexto = CONFIG.serviciosIncluidos
-    .map(s => `• ${s}`)
-    .join('\n');
+  const autosTexto = CONFIG.autos.map(a => `• ${a.tipo}: ${a.precioDia}`).join('\n');
+  const segurosTexto = CONFIG.seguros.map(s => `• ${s.tipo}: ${s.precioDia}`).join('\n');
 
   return `
 ${CONFIG.instruccionesIA}
@@ -75,84 +313,297 @@ Asesor 1: ${CONFIG.telefonos.asesor1}
 Asesor 2: ${CONFIG.telefonos.asesor2}
 Email: ${CONFIG.email}
 Web: ${CONFIG.web}
+Entregas: ${CONFIG.entregas}
 Métodos de pago: ${CONFIG.metodosPago}
 
-=== VEHÍCULOS DISPONIBLES ===
+=== PRECIOS DE RENTA POR DÍA ===
 ${autosTexto}
 
-=== REQUISITOS PARA RENTAR ===
-${requisitosTexto}
+=== PRECIOS DE SEGURO FULL COVER POR DÍA ===
+${segurosTexto}
 
-=== SERVICIOS INCLUIDOS ===
-${serviciosTexto}
+=== SEGURO INCLUIDO ===
+${CONFIG.seguroInfo.incluido}
+
+=== SEGURO FULL COVER (OPCIONAL) ===
+${CONFIG.seguroInfo.fullCover}
+
+=== REQUISITOS - TURISTAS ===
+${CONFIG.requisitos.turistas.map(r => `• ${r}`).join('\n')}
+
+=== REQUISITOS - RESIDENTES DE MÉRIDA ===
+${CONFIG.requisitos.locales.map(r => `• ${r}`).join('\n')}
+
+IMPORTANTE: Responde de forma breve y natural. Si el cliente pregunta algo del menú, responde directo.
 `.trim();
 }
 
 const PROMPT_SISTEMA = construirPromptSistema();
-
-// ─── Crear modelo con instrucciones del sistema ───
 const model = genAI.getGenerativeModel({
   model: 'gemini-2.5-flash',
   systemInstruction: PROMPT_SISTEMA,
 });
 
-// ─── Obtener respuesta de la IA ───
+// ============================================================
+// 🔄 MÁQUINA DE ESTADOS - FLUJO DE RESERVA
+// ============================================================
+
+function getConv(jid) {
+  if (!conversaciones.has(jid)) {
+    conversaciones.set(jid, {
+      historial: [],
+      lastActivity: Date.now(),
+      reserva: { step: null, data: {} },
+    });
+  }
+  const c = conversaciones.get(jid);
+  c.lastActivity = Date.now();
+  if (!c.reserva) c.reserva = { step: null, data: {} };
+  return c;
+}
+
+function cancelarReserva(jid) {
+  const c = getConv(jid);
+  c.reserva = { step: null, data: {} };
+}
+
+// ============================================================
+// 🧠 LÓGICA PRINCIPAL
+// ============================================================
+
+function esSaludo(texto) {
+  const saludos = ['hola', 'buen dia', 'buenos dias', 'buenas tardes', 'buenas noches',
+    'buenas', 'hey', 'hi', 'hello', 'que tal', 'qué tal', 'ola', 'buen día',
+    'buenos días', 'inicio', 'empezar'];
+  return saludos.includes(texto.toLowerCase().trim());
+}
+
+function esMenuVolver(texto) {
+  const t = texto.trim().toLowerCase();
+  return t === '0' || t === 'menu' || t === 'menú' || t === 'cancelar' || t === 'salir';
+}
+
 async function obtenerRespuestaIA(mensajeUsuario, jid) {
   try {
-    // Obtener o crear historial de esta conversación
-    if (!conversaciones.has(jid)) {
-      conversaciones.set(jid, []);
-    }
-    const historial = conversaciones.get(jid);
+    const conv = getConv(jid);
+    conv.historial.push({ role: 'user', parts: [{ text: mensajeUsuario }] });
 
-    // Agregar mensaje del usuario al historial
-    historial.push({ role: 'user', parts: [{ text: mensajeUsuario }] });
-
-    // Mantener solo los últimos N mensajes
-    while (historial.length > CONFIG.maxHistorial * 2) {
-      historial.shift();
+    while (conv.historial.length > CONFIG.maxHistorial * 2) {
+      conv.historial.shift();
     }
 
-    // Llamar a Gemini con historial
-    const chat = model.startChat({
-      history: historial.slice(0, -1),
-    });
-
+    const chat = model.startChat({ history: conv.historial.slice(0, -1) });
     const result = await chat.sendMessage(mensajeUsuario);
     const respuesta = result.response.text();
 
-    // Guardar respuesta en historial
-    historial.push({ role: 'model', parts: [{ text: respuesta }] });
-
+    conv.historial.push({ role: 'model', parts: [{ text: respuesta }] });
     return respuesta;
   } catch (error) {
     console.error('❌ Error con Gemini:', error.message);
-
     if (error.message?.includes('429') || error.message?.includes('quota')) {
       return 'Ahorita tenemos mucha demanda, intenta en unos minutos o márcanos al ' + CONFIG.telefonos.asesor1 + ' 📞';
     }
-
-    return 'Disculpa, no pude procesar tu mensaje. ¿Me lo repites? O si prefieres, márcanos al ' + CONFIG.telefonos.asesor1 + ' 📞';
+    return 'Disculpa, no pude procesar tu mensaje. Márcanos al ' + CONFIG.telefonos.asesor1 + ' 📞';
   }
 }
 
-// ─── Función principal de conexión ───
+// ─── Respuesta principal ───
+async function obtenerRespuesta(textoMensaje, jid) {
+  const conv = getConv(jid);
+  const reserva = conv.reserva;
+  const limpio = textoMensaje.trim().toLowerCase();
+
+  // ── SIEMPRE: si escribe 0/menu/cancelar → volver al menú ──
+  if (esMenuVolver(limpio)) {
+    cancelarReserva(jid);
+    return MENU_PRINCIPAL;
+  }
+
+  // ── SIEMPRE: si es saludo → menú ──
+  if (esSaludo(textoMensaje)) {
+    cancelarReserva(jid);
+    return MENU_PRINCIPAL;
+  }
+
+  // ══════════════════════════════════════════
+  // FLUJO DE RESERVA (si hay paso activo)
+  // ══════════════════════════════════════════
+  if (reserva.step) {
+
+    // ── Paso 1: Elegir auto ──
+    if (reserva.step === 'elegirAuto') {
+      const auto = detectarAuto(textoMensaje);
+      if (!auto) {
+        return '❌ No reconocí ese auto. Escribe el *número* (1-6) o el *nombre* (Básico, Confort, SUV, etc.)\n\n' + MENU_ELEGIR_AUTO;
+      }
+      reserva.data.auto = auto;
+      const seguro = precioFullCover(auto);
+      reserva.data.seguroInfo = seguro;
+      reserva.step = 'elegirFechas';
+      return `✅ *${auto.tipo}* — ${auto.precioDia}\n\n📅 ¿Para qué fechas lo necesitas?\n\n_Ejemplo: del 11 al 15 de julio_`;
+    }
+
+    // ── Paso 2: Fechas ──
+    if (reserva.step === 'elegirFechas') {
+      const fechas = parsearFechas(textoMensaje);
+      if (!fechas) {
+        return '❌ No entendí las fechas. Intenta así:\n• _del 11 al 15 de julio_\n• _julio 11 al 15_\n• _11/07 al 15/07_';
+      }
+      const dias = diasEntre(fechas.inicio, fechas.fin);
+      reserva.data.fechaInicio = fechas.inicio;
+      reserva.data.fechaFin = fechas.fin;
+      reserva.data.dias = dias;
+
+      const precioAuto = parseInt(reserva.data.auto.precioDia.replace(/[^0-9]/g, ''), 10);
+      const totalSinSeguro = precioAuto * dias;
+
+      reserva.step = 'elegirSeguro';
+      return `✅ *${dias} día(s)*: ${formatFecha(fechas.inicio)} al ${formatFecha(fechas.fin)}
+
+💰 Renta: ${reserva.data.auto.precioDia} × ${dias} días = *$${totalSinSeguro.toLocaleString()} MXN*
+
+🛡️ ¿Quieres agregar el *Full Cover*? (${reserva.data.seguroInfo.precioDia}/día extra, deducible 0%)
+
+*1.* ✅ Sí, agregar Full Cover
+*2.* ❌ No, con el seguro amplio incluido está bien`;
+    }
+
+    // ── Paso 3: Seguro ──
+    if (reserva.step === 'elegirSeguro') {
+      const quiereFC = limpio === '1' || limpio === 'sí' || limpio === 'si' || limpio === 'yes' || limpio.includes('full') || limpio.includes('cover');
+      reserva.data.fullCover = quiereFC;
+      reserva.step = 'pedirNombre';
+      return '👤 Para completar tu reserva, escríbeme tu *nombre completo*:';
+    }
+
+    // ── Paso 4: Nombre ──
+    if (reserva.step === 'pedirNombre') {
+      reserva.data.nombre = textoMensaje.trim();
+      reserva.step = 'pedirTelefono';
+      return '📞 Tu *número de teléfono* (con lada, ej: 999 123 4567):';
+    }
+
+    // ── Paso 5: Teléfono ──
+    if (reserva.step === 'pedirTelefono') {
+      reserva.data.telefono = textoMensaje.trim();
+      reserva.step = 'confirmar';
+
+      // Calcular totales
+      const precioAuto = parseInt(reserva.data.auto.precioDia.replace(/[^0-9]/g, ''), 10);
+      const precioSeg = reserva.data.fullCover
+        ? parseInt(reserva.data.seguroInfo.precioDia.replace(/[^0-9]/g, ''), 10)
+        : 0;
+      const totalRenta = precioAuto * reserva.data.dias;
+      const totalSeguro = precioSeg * reserva.data.dias;
+      const totalFinal = totalRenta + totalSeguro;
+
+      reserva.data.totalRenta = totalRenta;
+      reserva.data.totalSeguro = totalSeguro;
+      reserva.data.totalFinal = totalFinal;
+
+      let resumen = `📝 *RESUMEN DE TU RESERVA*\n\n`;
+      resumen += `🚗 Auto: *${reserva.data.auto.tipo}*\n`;
+      resumen += `📅 Fechas: ${formatFecha(reserva.data.fechaInicio)} al ${formatFecha(reserva.data.fechaFin)}\n`;
+      resumen += `📆 Días: *${reserva.data.dias}*\n`;
+      resumen += `💰 Renta: $${totalRenta.toLocaleString()} MXN\n`;
+      if (reserva.data.fullCover) {
+        resumen += `🛡️ Full Cover: $${totalSeguro.toLocaleString()} MXN\n`;
+      } else {
+        resumen += `🛡️ Seguro: Amplio incluido (10% deducible)\n`;
+      }
+      resumen += `\n💵 *TOTAL: $${totalFinal.toLocaleString()} MXN*\n`;
+      resumen += `\n👤 ${reserva.data.nombre}\n📞 ${reserva.data.telefono}\n`;
+      resumen += `\n¿Todo correcto?\n\n*1.* ✅ Sí, confirmar reserva\n*2.* ❌ No, cancelar`;
+
+      return resumen;
+    }
+
+    // ── Paso 6: Confirmar ──
+    if (reserva.step === 'confirmar') {
+      if (limpio === '1' || limpio === 'sí' || limpio === 'si' || limpio === 'yes' || limpio.includes('confirma')) {
+        // Guardar lead
+        const lead = {
+          jid,
+          auto: reserva.data.auto.tipo,
+          precioAutoDia: reserva.data.auto.precioDia,
+          fullCover: reserva.data.fullCover,
+          dias: reserva.data.dias,
+          fechaInicio: formatFecha(reserva.data.fechaInicio),
+          fechaFin: formatFecha(reserva.data.fechaFin),
+          nombre: reserva.data.nombre,
+          telefono: reserva.data.telefono,
+          totalRenta: `$${reserva.data.totalRenta.toLocaleString()} MXN`,
+          totalSeguro: reserva.data.fullCover ? `$${reserva.data.totalSeguro.toLocaleString()} MXN` : 'Incluido',
+          totalFinal: `$${reserva.data.totalFinal.toLocaleString()} MXN`,
+          timestamp: new Date().toISOString(),
+        };
+        guardarLead(lead);
+
+        // Reset
+        cancelarReserva(jid);
+
+        return `🎉 *¡Reserva registrada!*
+
+Un asesor te contactará pronto al *${lead.telefono}* para confirmar disponibilidad y coordinar la entrega.
+
+📞 Si necesitas algo urgente:
+• ${CONFIG.telefonos.asesor1}
+• ${CONFIG.telefonos.asesor2}
+
+¡Gracias por elegir *Chip Rent a Car*! 🚗
+
+_Escribe *0* para volver al menú_`;
+      } else {
+        cancelarReserva(jid);
+        return '❌ Reserva cancelada. Sin problema, cuando quieras la hacemos de nuevo 👍\n\n_Escribe *0* para ver el menú_';
+      }
+    }
+  }
+
+  // ══════════════════════════════════════════
+  // MENÚ PRINCIPAL (sin reserva activa)
+  // ══════════════════════════════════════════
+
+  // Opción 1: Autos y precios
+  if (limpio === '1') return MENU_AUTOS;
+
+  // Opción 2: Seguros
+  if (limpio === '2') return MENU_SEGUROS;
+
+  // Opción 3: Requisitos
+  if (limpio === '3') return MENU_REQUISITOS;
+
+  // Opción 4: Ubicación
+  if (limpio === '4') return MENU_UBICACION;
+
+  // Opción 5 o "reservar" → iniciar flujo
+  if (limpio === '5' || limpio.includes('reservar') || limpio.includes('apartar') || limpio.includes('rentar')) {
+    reserva.step = 'elegirAuto';
+    return '📅 *¡Vamos a reservar!*\n\n' + MENU_ELEGIR_AUTO;
+  }
+
+  // Opción 6 o cualquier otra cosa → IA
+  const respuestaIA = await obtenerRespuestaIA(textoMensaje, jid);
+  return respuestaIA + '\n\n_Escribe *0* para ver el menú_';
+}
+
+// ============================================================
+// 📱 CONEXIÓN WHATSAPP
+// ============================================================
+
 async function iniciarBot() {
   console.log('\n🚗 ═══════════════════════════════════════════');
   console.log(`   ${CONFIG.nombreNegocio} - Bot de WhatsApp`);
   console.log('═══════════════════════════════════════════════\n');
 
-  // Cargar o crear sesión
   const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
-  // Crear conexión
   const sock = makeWASocket({
     auth: state,
     browser: Browsers.ubuntu('Chrome'),
-    markOnlineOnConnect: false, // No marcar como "en línea" para recibir notificaciones
+    markOnlineOnConnect: false,
   });
 
-  // ─── Evento: Actualización de conexión ───
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr: qrCode } = update;
 
@@ -165,47 +616,43 @@ async function iniciarBot() {
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-
       console.log(`\n⚠️  Conexión cerrada. Código: ${statusCode}`);
-
       if (shouldReconnect) {
         console.log('🔄 Reconectando en 5 segundos...\n');
         setTimeout(iniciarBot, 5000);
       } else {
-        console.log('🚪 Sesión cerrada. Elimina la carpeta auth_info_baileys/ y vuelve a escanear el QR.\n');
+        // Sesión expirada/cerrada → borrar sesión y reiniciar con QR nuevo
+        console.log('🚪 Sesión cerrada (401). Limpiando sesión automáticamente...');
+        try {
+          fs.rmSync('auth_info_baileys', { recursive: true, force: true });
+          console.log('🗑️  Carpeta auth_info_baileys eliminada.');
+        } catch (err) {
+          console.error('⚠️  No se pudo eliminar la carpeta:', err.message);
+        }
+        console.log('🔄 Reiniciando para mostrar nuevo QR en 5 segundos...\n');
+        setTimeout(iniciarBot, 5000);
       }
     }
 
     if (connection === 'open') {
       console.log('✅ ¡Conectado exitosamente a WhatsApp!');
-      console.log('🤖 El bot está activo y respondiendo mensajes.');
+      console.log('🤖 Bot activo y respondiendo.');
       console.log('📊 Presiona Ctrl+C para detener.\n');
     }
   });
 
-  // ─── Evento: Guardar credenciales ───
   sock.ev.on('creds.update', saveCreds);
 
-  // ─── Evento: Mensajes entrantes ───
   sock.ev.on('messages.upsert', async (event) => {
-    // Solo procesar mensajes nuevos (no historial)
     if (event.type !== 'notify') return;
 
     for (const msg of event.messages) {
       try {
-        // ── Filtros: ignorar lo que no necesitamos ──
         const jid = msg.key.remoteJid;
-
-        // Ignorar mensajes propios
         if (msg.key.fromMe) continue;
-
-        // Ignorar mensajes de grupos (terminan en @g.us)
         if (jid?.endsWith('@g.us')) continue;
-
-        // Ignorar estados/historias (status@broadcast)
         if (jid === 'status@broadcast') continue;
 
-        // Ignorar mensajes sin contenido de texto
         const textoMensaje =
           msg.message?.conversation ||
           msg.message?.extendedTextMessage?.text ||
@@ -214,7 +661,6 @@ async function iniciarBot() {
           null;
 
         if (!textoMensaje) {
-          // Si envían audio, imagen sin texto, sticker, etc.
           await delay(CONFIG.delayRespuesta);
           await sock.sendMessage(jid, {
             text: '📝 Por el momento solo puedo leer mensajes de texto. ¿Podrías escribirme tu pregunta? 😊',
@@ -222,7 +668,6 @@ async function iniciarBot() {
           continue;
         }
 
-        // ── Rate limiting ──
         if (respuestasEnUltimoMinuto >= CONFIG.maxRespuestasPorMinuto) {
           console.log(`⏳ Rate limit alcanzado, ignorando mensaje de ${jid}`);
           continue;
@@ -230,22 +675,17 @@ async function iniciarBot() {
 
         console.log(`📩 Mensaje de ${jid.split('@')[0]}: "${textoMensaje.substring(0, 50)}..."`);
 
-        // ── Simular "escribiendo..." ──
         await sock.presenceSubscribe(jid);
         await sock.sendPresenceUpdate('composing', jid);
-
-        // ── Esperar un poco (simula escritura natural) ──
         await delay(CONFIG.delayRespuesta);
 
-        // ── Obtener respuesta de la IA ──
-        const respuesta = await obtenerRespuestaIA(textoMensaje, jid);
+        const respuesta = await obtenerRespuesta(textoMensaje, jid);
 
-        // ── Enviar respuesta ──
         await sock.sendPresenceUpdate('paused', jid);
         await sock.sendMessage(jid, { text: respuesta });
 
         respuestasEnUltimoMinuto++;
-        console.log(`✅ Respondido a ${jid.split('@')[0]} (${respuestasEnUltimoMinuto}/${CONFIG.maxRespuestasPorMinuto} este minuto)`);
+        console.log(`✅ Respondido a ${jid.split('@')[0]} (${respuestasEnUltimoMinuto}/${CONFIG.maxRespuestasPorMinuto} min)`);
 
       } catch (error) {
         console.error('❌ Error procesando mensaje:', error.message);
@@ -254,33 +694,18 @@ async function iniciarBot() {
   });
 }
 
-// ─── Utilidad: delay ───
+// ─── Utilidades y arranque ───
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ─── Arrancar el bot ───
 console.log('🚀 Iniciando bot...');
 iniciarBot().catch(err => {
   console.error('💥 Error fatal:', err);
   process.exit(1);
 });
 
-// ─── Manejar cierre limpio ───
-process.on('SIGINT', () => {
-  console.log('\n\n👋 Bot detenido. ¡Hasta luego!\n');
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  console.log('\n\n👋 Bot detenido por el sistema.\n');
-  process.exit(0);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('💥 Error no capturado:', err.message);
-});
-
-process.on('unhandledRejection', (err) => {
-  console.error('💥 Promesa rechazada:', err);
-});
+process.on('SIGINT', () => { console.log('\n\n👋 Bot detenido.\n'); process.exit(0); });
+process.on('SIGTERM', () => { console.log('\n\n👋 Bot detenido por el sistema.\n'); process.exit(0); });
+process.on('uncaughtException', (err) => { console.error('💥 Error no capturado:', err.message); });
+process.on('unhandledRejection', (err) => { console.error('💥 Promesa rechazada:', err); });
