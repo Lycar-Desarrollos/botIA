@@ -739,11 +739,17 @@ _Escribe *0* para volver al menú_`;
 // 📱 CONEXIÓN WHATSAPP
 // ============================================================
 
-let isInitializing = false;
+let isConnecting = false;
+let reconnectTimer = null;
 
 async function iniciarBot() {
-  if (isInitializing) return;
-  isInitializing = true;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  if (isConnecting) return;
+  isConnecting = true;
 
   if (activeSock) {
     try {
@@ -766,30 +772,32 @@ async function iniciarBot() {
     const sock = makeWASocket({
       version,
       auth: state,
-      browser: Browsers.macOS('Desktop'),
+      browser: ['Ubuntu', 'Chrome', '20.0.04'],
       markOnlineOnConnect: false,
     });
     activeSock = sock;
-    isInitializing = false;
+    isConnecting = false;
 
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr: qrCode } = update;
 
       if (qrCode) {
-        console.log('\n📱 Escanea este QR con el WhatsApp del chip dedicado:\n');
+        console.log('📱 Generando QR para la pantalla web y terminal...');
         qrcode.generate(qrCode, { small: true });
-        console.log('\n   (Abre WhatsApp > Menú > Dispositivos vinculados > Vincular dispositivo)\n');
 
-        QRCode.toDataURL(qrCode, { margin: 2, scale: 8 }, (err, url) => {
-          if (!err) currentQRDataUrl = url;
-        });
+        try {
+          currentQRDataUrl = await QRCode.toDataURL(qrCode, { margin: 2, scale: 8 });
+          console.log('✅ QR generado exitosamente.');
+        } catch (err) {
+          console.error('Error generando QR:', err);
+        }
       }
 
       if (connection === 'close') {
         botConnected = false;
         activeSock = null;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        console.log(`⚠️  Conexión cerrada. Código: ${statusCode}`);
+        console.log(`⚠️ Conexión cerrada. Código: ${statusCode}`);
 
         if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
           console.log('🚪 Sesión cerrada (401). Limpiando credenciales...');
@@ -799,19 +807,23 @@ async function iniciarBot() {
           currentQRDataUrl = null;
         }
 
-        setTimeout(() => { iniciarBot(); }, 3000);
+        if (!reconnectTimer) {
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            iniciarBot();
+          }, 5000);
+        }
       }
 
-    if (connection === 'open') {
-      botConnected = true;
-      currentQRDataUrl = null;
-      console.log('✅ ¡Conectado exitosamente a WhatsApp!');
-      console.log('🤖 Bot activo y respondiendo.');
-      console.log('📊 Presiona Ctrl+C para detener.\n');
-    }
-  });
+      if (connection === 'open') {
+        botConnected = true;
+        currentQRDataUrl = null;
+        console.log('✅ ¡Conectado exitosamente a WhatsApp!');
+        console.log('🤖 Bot activo y respondiendo.\n');
+      }
+    });
 
-  sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('messages.upsert', async (event) => {
     if (event.type !== 'notify') return;
