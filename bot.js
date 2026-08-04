@@ -18,6 +18,7 @@ import fs from 'fs';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
+import QRCode from 'qrcode';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -58,6 +59,7 @@ setInterval(() => {
 
 // ─── Estado global del Bot ───
 let botConnected = false;
+let currentQRDataUrl = null;
 
 // ─── Leads ───
 const LEADS_FILE = 'leads.json';
@@ -159,7 +161,7 @@ app.put('/api/config', requireAuth, (req, res) => {
 });
 
 app.get('/api/bot/status', requireAuth, (req, res) => {
-  res.json({ connected: botConnected, activeConversations: conversaciones.size });
+  res.json({ connected: botConnected, qr: currentQRDataUrl, activeConversations: conversaciones.size });
 });
 
 app.post('/api/bot/restart', requireAuth, (req, res) => {
@@ -730,6 +732,10 @@ async function iniciarBot() {
       console.log('\n📱 Escanea este QR con el WhatsApp del chip dedicado:\n');
       qrcode.generate(qrCode, { small: true });
       console.log('\n   (Abre WhatsApp > Menú > Dispositivos vinculados > Vincular dispositivo)\n');
+
+      QRCode.toDataURL(qrCode, { margin: 2, scale: 8 }, (err, url) => {
+        if (!err) currentQRDataUrl = url;
+      });
     }
 
     if (connection === 'close') {
@@ -756,6 +762,7 @@ async function iniciarBot() {
 
     if (connection === 'open') {
       botConnected = true;
+      currentQRDataUrl = null;
       console.log('✅ ¡Conectado exitosamente a WhatsApp!');
       console.log('🤖 Bot activo y respondiendo.');
       console.log('📊 Presiona Ctrl+C para detener.\n');

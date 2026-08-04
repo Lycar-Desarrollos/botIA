@@ -113,7 +113,13 @@ async function handleLogout() {
   showLoginScreen();
 }
 
+let statusInterval = null;
+
 function showLoginScreen() {
+  if (statusInterval) {
+    clearInterval(statusInterval);
+    statusInterval = null;
+  }
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app-screen').classList.add('hidden');
 }
@@ -123,6 +129,10 @@ function showAppScreen(username) {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-screen').classList.remove('hidden');
   loadDashboardData();
+
+  if (!statusInterval) {
+    statusInterval = setInterval(fetchBotStatus, 3000);
+  }
 }
 
 // ------------------------------------------------------------
@@ -465,11 +475,17 @@ async function fetchBotStatus() {
     const status = await res.json();
 
     const isConnected = status.connected;
+    const qrDataUrl = status.qr;
     
     // Quick badge in top header
     const quickBadge = document.getElementById('bot-quick-status');
     const statusText = document.getElementById('bot-status-text');
     const statusDot = document.getElementById('bot-status-indicator');
+
+    const dashQrBanner = document.getElementById('dashboard-qr-banner');
+    const dashQrImgBox = document.getElementById('dash-qr-img-box');
+    const qrContainer = document.getElementById('qr-container');
+    const qrCodeImg = document.getElementById('qr-code-img');
 
     if (isConnected) {
       quickBadge.className = 'bot-quick-badge';
@@ -483,18 +499,37 @@ async function fetchBotStatus() {
       document.getElementById('bot-status-big-icon').className = 'status-big-badge online';
       document.getElementById('bot-status-big-title').textContent = 'WhatsApp Conectado';
       document.getElementById('bot-status-big-desc').textContent = 'El bot está respondiendo mensajes activamente.';
+
+      if (dashQrBanner) dashQrBanner.classList.add('hidden');
+      if (qrContainer) qrContainer.classList.add('hidden');
     } else {
       quickBadge.className = 'bot-quick-badge offline';
       statusText.textContent = 'WhatsApp Offline';
       statusDot.className = 'status-dot offline';
 
       document.getElementById('stat-bot-connection').textContent = 'Offline';
-      document.getElementById('stat-bot-detail').textContent = 'Requiere escaneo de QR';
+      document.getElementById('stat-bot-detail').textContent = 'Escanea el QR abajo';
       document.getElementById('stat-bot-detail').className = 'stat-trend';
 
       document.getElementById('bot-status-big-icon').className = 'status-big-badge offline';
       document.getElementById('bot-status-big-title').textContent = 'WhatsApp Desconectado';
-      document.getElementById('bot-status-big-desc').textContent = 'Abre la terminal o escanea el QR para reactivar la sesión.';
+      document.getElementById('bot-status-big-desc').textContent = 'Escanea el código QR con WhatsApp en tu iPhone para vincular el dispositivo.';
+
+      if (qrDataUrl) {
+        const qrHtml = `<img src="${qrDataUrl}" alt="Código QR WhatsApp" style="max-width: 280px; border-radius: 12px; background: white; padding: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">`;
+        
+        if (dashQrBanner) {
+          dashQrBanner.classList.remove('hidden');
+          if (dashQrImgBox) dashQrImgBox.innerHTML = qrHtml;
+        }
+        if (qrContainer) {
+          qrContainer.classList.remove('hidden');
+          if (qrCodeImg) qrCodeImg.innerHTML = qrHtml;
+        }
+      } else {
+        if (dashQrImgBox) dashQrImgBox.innerHTML = `<p class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Generando código QR...</p>`;
+        if (qrCodeImg) qrCodeImg.innerHTML = `<p class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Generando código QR...</p>`;
+      }
     }
   } catch (err) {
     console.error('Error obteniendo estado del bot:', err);
@@ -505,8 +540,7 @@ async function restartBot() {
   if (!confirm('¿Deseas reiniciar la conexión del bot de WhatsApp?')) return;
   try {
     await fetch('/api/bot/restart', { method: 'POST' });
-    alert('🔄 Reinicio iniciado. Espera unos segundos...');
-    setTimeout(fetchBotStatus, 3000);
+    fetchBotStatus();
   } catch (err) {
     alert('Error al enviar la señal de reinicio.');
   }
