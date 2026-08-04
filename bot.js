@@ -10,6 +10,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   Browsers,
+  fetchLatestBaileysVersion,
 } from 'baileys';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import qrcode from 'qrcode-terminal';
@@ -757,11 +758,15 @@ async function iniciarBot() {
   console.log('═══════════════════════════════════════════════\n');
 
   try {
+    const { version } = await fetchLatestBaileysVersion();
+    console.log(`📱 Usando versión de WhatsApp Web v${version.join('.')}`);
+
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
     const sock = makeWASocket({
+      version,
       auth: state,
-      browser: Browsers.ubuntu('Chrome'),
+      browser: Browsers.macOS('Desktop'),
       markOnlineOnConnect: false,
     });
     activeSock = sock;
