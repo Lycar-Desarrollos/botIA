@@ -516,20 +516,17 @@ async function fetchBotStatus() {
       document.getElementById('bot-status-big-title').textContent = 'WhatsApp Desconectado';
       document.getElementById('bot-status-big-desc').textContent = 'Escanea el código QR con WhatsApp en tu iPhone para vincular el dispositivo.';
 
+      if (dashQrBanner) dashQrBanner.classList.remove('hidden');
+      if (qrContainer) qrContainer.classList.remove('hidden');
+
       if (qrDataUrl) {
         const qrHtml = `<img src="${qrDataUrl}" alt="Código QR WhatsApp" style="max-width: 280px; border-radius: 12px; background: white; padding: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">`;
-        
-        if (dashQrBanner) {
-          dashQrBanner.classList.remove('hidden');
-          if (dashQrImgBox) dashQrImgBox.innerHTML = qrHtml;
-        }
-        if (qrContainer) {
-          qrContainer.classList.remove('hidden');
-          if (qrCodeImg) qrCodeImg.innerHTML = qrHtml;
-        }
+        if (dashQrImgBox) dashQrImgBox.innerHTML = qrHtml;
+        if (qrCodeImg) qrCodeImg.innerHTML = qrHtml;
       } else {
-        if (dashQrImgBox) dashQrImgBox.innerHTML = `<p class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Generando código QR...</p>`;
-        if (qrCodeImg) qrCodeImg.innerHTML = `<p class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Generando código QR...</p>`;
+        const loadingHtml = `<div style="padding: 1.5rem; background: rgba(0,0,0,0.3); border-radius: 12px; display: inline-block;"><i class="fa-solid fa-spinner fa-spin fa-2x" style="color: #60a5fa;"></i><p class="text-muted mt-2" style="font-size: 0.9rem;">Generando código QR nuevo...</p></div>`;
+        if (dashQrImgBox) dashQrImgBox.innerHTML = loadingHtml;
+        if (qrCodeImg) qrCodeImg.innerHTML = loadingHtml;
       }
     }
   } catch (err) {
