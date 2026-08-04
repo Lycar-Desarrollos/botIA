@@ -446,8 +446,9 @@ function diasEntre(inicio, fin) {
 // ============================================================
 
 function construirPromptSistema() {
-  const autosTexto = CONFIG.autos.map(a => `• ${a.tipo}: ${a.precioDia}`).join('\n');
+  const autosTexto = CONFIG.autos.map(a => `• ${a.tipo}: ${a.precioDia}${a.desc ? ` - ${a.desc}` : ''}`).join('\n');
   const segurosTexto = CONFIG.seguros.map(s => `• ${s.tipo}: ${s.precioDia}`).join('\n');
+  const faqsTexto = (CONFIG.faqs || []).map(f => `P: ${f.q}\nR: ${f.a}`).join('\n\n');
 
   return `
 ${CONFIG.instruccionesIA}
@@ -481,7 +482,10 @@ ${CONFIG.requisitos.turistas.map(r => `• ${r}`).join('\n')}
 === REQUISITOS - RESIDENTES DE MÉRIDA ===
 ${CONFIG.requisitos.locales.map(r => `• ${r}`).join('\n')}
 
-IMPORTANTE: Responde de forma breve y natural. Si el cliente pregunta algo del menú, responde directo.
+=== PREGUNTAS FRECUENTES Y POLÍTICAS DE RENTA ===
+${faqsTexto}
+
+IMPORTANTE: Responde de forma breve, amable y natural. Si el cliente pregunta algo del menú, responde directo.
 `.trim();
 }
 
