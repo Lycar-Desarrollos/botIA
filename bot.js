@@ -166,7 +166,13 @@ app.get('/api/bot/status', requireAuth, (req, res) => {
 });
 
 app.post('/api/bot/restart', requireAuth, (req, res) => {
-  iniciarBot();
+  botConnected = false;
+  currentQRDataUrl = null;
+  if (activeSock) {
+    try { activeSock.ev.removeAllListeners(); activeSock.end(); } catch {}
+    activeSock = null;
+  }
+  setTimeout(iniciarBot, 1000);
   res.json({ success: true, message: 'Reiniciando bot...' });
 });
 
@@ -182,7 +188,7 @@ app.post('/api/bot/logout-whatsapp', requireAuth, (req, res) => {
       fs.rmSync('auth_info_baileys', { recursive: true, force: true });
     } catch {}
     console.log('🗑️  Sesión WhatsApp eliminada desde la web. Generando nuevo QR...');
-    setTimeout(iniciarBot, 1000);
+    setTimeout(iniciarBot, 1500);
     res.json({ success: true, message: 'Sesión eliminada. Generando nuevo QR...' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -732,54 +738,71 @@ _Escribe *0* para volver al menú_`;
 // 📱 CONEXIÓN WHATSAPP
 // ============================================================
 
+let isInitializing = false;
+
 async function iniciarBot() {
+  if (isInitializing) return;
+  isInitializing = true;
+
+  if (activeSock) {
+    try {
+      activeSock.ev.removeAllListeners();
+      activeSock.end();
+    } catch (e) {}
+    activeSock = null;
+  }
+
   console.log('\n🚗 ═══════════════════════════════════════════');
   console.log(`   ${CONFIG.nombreNegocio} - Bot de WhatsApp`);
   console.log('═══════════════════════════════════════════════\n');
 
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
-  const sock = makeWASocket({
-    auth: state,
-    browser: Browsers.ubuntu('Chrome'),
-    markOnlineOnConnect: false,
-  });
-  activeSock = sock;
+    const sock = makeWASocket({
+      auth: state,
+      browser: Browsers.ubuntu('Chrome'),
+      markOnlineOnConnect: false,
+    });
+    activeSock = sock;
+    isInitializing = false;
 
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect, qr: qrCode } = update;
+    sock.ev.on('connection.update', (update) => {
+      const { connection, lastDisconnect, qr: qrCode } = update;
 
-    if (qrCode) {
-      console.log('\n📱 Escanea este QR con el WhatsApp del chip dedicado:\n');
-      qrcode.generate(qrCode, { small: true });
-      console.log('\n   (Abre WhatsApp > Menú > Dispositivos vinculados > Vincular dispositivo)\n');
+      if (qrCode) {
+        console.log('\n📱 Escanea este QR con el WhatsApp del chip dedicado:\n');
+        qrcode.generate(qrCode, { small: true });
+        console.log('\n   (Abre WhatsApp > Menú > Dispositivos vinculados > Vincular dispositivo)\n');
 
-      QRCode.toDataURL(qrCode, { margin: 2, scale: 8 }, (err, url) => {
-        if (!err) currentQRDataUrl = url;
-      });
-    }
-
-    if (connection === 'close') {
-      botConnected = false;
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      console.log(`\n⚠️  Conexión cerrada. Código: ${statusCode}`);
-      if (shouldReconnect) {
-        console.log('🔄 Reconectando en 5 segundos...\n');
-        setTimeout(iniciarBot, 5000);
-      } else {
-        // Sesión expirada/cerrada → borrar sesión y reiniciar con QR nuevo
-        console.log('🚪 Sesión cerrada (401). Limpiando sesión automáticamente...');
-        try {
-          fs.rmSync('auth_info_baileys', { recursive: true, force: true });
-          console.log('🗑️  Carpeta auth_info_baileys eliminada.');
-        } catch (err) {
-          console.error('⚠️  No se pudo eliminar la carpeta:', err.message);
-        }
-        console.log('🔄 Reiniciando para mostrar nuevo QR en 5 segundos...\n');
-        setTimeout(iniciarBot, 5000);
+        QRCode.toDataURL(qrCode, { margin: 2, scale: 8 }, (err, url) => {
+          if (!err) currentQRDataUrl = url;
+        });
       }
-    }
+
+      if (connection === 'close') {
+        botConnected = false;
+        activeSock = null;
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        console.log(`\n⚠️  Conexión cerrada. Código: ${statusCode}`);
+        if (shouldReconnect) {
+          console.log('🔄 Reconectando en 5 segundos...\n');
+          setTimeout(() => { iniciarBot(); }, 5000);
+        } else {
+          // Sesión expirada/cerrada → borrar sesión y reiniciar con QR nuevo
+          console.log('🚪 Sesión cerrada (401). Limpiando sesión automáticamente...');
+          try {
+            fs.rmSync('auth_info_baileys', { recursive: true, force: true });
+            console.log('🗑️  Carpeta auth_info_baileys eliminada.');
+          } catch (err) {
+            console.error('⚠️  No se pudo eliminar la carpeta:', err.message);
+          }
+          currentQRDataUrl = null;
+          console.log('🔄 Reiniciando para mostrar nuevo QR en 5 segundos...\n');
+          setTimeout(() => { iniciarBot(); }, 5000);
+        }
+      }
 
     if (connection === 'open') {
       botConnected = true;
@@ -841,6 +864,10 @@ async function iniciarBot() {
       }
     }
   });
+  } catch (err) {
+    isInitializing = false;
+    console.error('⚠️ Error iniciando socket:', err.message);
+  }
 }
 
 // ─── Utilidades y arranque ───
