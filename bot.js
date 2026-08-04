@@ -789,19 +789,16 @@ async function iniciarBot() {
         botConnected = false;
         activeSock = null;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        console.log(`\n⚠️  Conexión cerrada. Código: ${statusCode}`);
+        console.log(`⚠️  Conexión cerrada. Código: ${statusCode}`);
 
-        // Si el bot no está vinculado (!sock?.user) o el error es logout, limpiar auth_info_baileys para regenerar un QR limpio
-        if (!sock?.user || statusCode === DisconnectReason.loggedOut) {
-          console.log('🧹 Limpiando sesión no vinculada para generar nuevo QR...');
+        if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+          console.log('🚪 Sesión cerrada (401). Limpiando credenciales...');
           try {
             fs.rmSync('auth_info_baileys', { recursive: true, force: true });
-            console.log('🗑️  Carpeta auth_info_baileys eliminada.');
           } catch (err) {}
           currentQRDataUrl = null;
         }
 
-        console.log('🔄 Reiniciando sesión en 3 segundos...\n');
         setTimeout(() => { iniciarBot(); }, 3000);
       }
 
