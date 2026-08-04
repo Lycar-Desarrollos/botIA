@@ -65,10 +65,12 @@ function guardarLead(lead) {
 // 📋 MENÚS
 // ============================================================
 
-const MENU_PRINCIPAL = `¡Hola! 👋 Bienvenido a *CHIP RENT A CAR* 🚗
-Renta de autos en Mérida, Yucatán
+const MENU_PRINCIPAL = `👋 ¡Hola! Bienvenido a *CHIP RENT A CAR* 🚗
+_Renta de autos en Mérida, Yucatán_
 
+─────────────────────
 ¿En qué te puedo ayudar?
+─────────────────────
 
 *1.* 🚗 Ver autos y precios
 *2.* 🛡️ Seguros y coberturas
@@ -80,50 +82,53 @@ Renta de autos en Mérida, Yucatán
 _Escribe el número de la opción_ ⬇️`;
 
 const MENU_AUTOS = `🚗 *PRECIOS DE RENTA POR DÍA*
+─────────────────────
 
-*1.* Básico (sedán económico) — *$700/día*
-*2.* Confort (sedán amplio) — *$800/día*
-*3.* SUV de 5 pasajeros — *$1,200/día*
-*4.* SUV de 7 pasajeros — *$1,200/día*
-*5.* Minivan de 8 pasajeros — *$1,500/día*
-*6.* Van de 12-15 pasajeros — *$2,300/día*
+*1.* Básico (sedán económico) — *$700*
+*2.* Confort (sedán amplio) — *$800*
+*3.* SUV de 5 pasajeros — *$1,200*
+*4.* SUV de 7 pasajeros — *$1,200*
+*5.* Minivan de 8 pasajeros — *$1,500*
+*6.* Van de 12-15 pasajeros — *$2,300*
 
-Todos incluyen seguro amplio y km libre en la península 🏖️
+✅ Todos incluyen seguro amplio y km libre en la península 🏖️
 
 _Escribe *5* o *reservar* para apartar tu auto_
 _Escribe *0* para volver al menú_`;
 
 const MENU_SEGUROS = `🛡️ *SEGUROS Y COBERTURAS*
+─────────────────────
 
 ✅ *Seguro amplio INCLUIDO:*
 • 10% de deducible
 • Cubre: robo, pérdida total, colisión
 • Daños a terceros
-• Km libre en Campeche, Quintana Roo y toda la península
+• Km libre en toda la península
 
 💎 *Seguro Full Cover (opcional):*
 • Deducible baja a *0%*
-• Cubre hasta vidrio, cristal o abolladura
+• Cubre vidrio, cristal o abolladura
 • Si pasa algo, *no pagas nada*
 
 💰 *Costo del Full Cover por día:*
-• Básico: $400
-• Confort: $500
-• SUV de 7: $500
-• Minivan de 8: $600
-• Van de 12-15: $1,000
+• Básico — $400
+• Confort — $500
+• SUV de 5 y 7 — $500
+• Minivan de 8 — $600
+• Van de 12-15 — $1,000
 
 _Escribe *5* o *reservar* para apartar_
 _Escribe *0* para volver al menú_`;
 
 const MENU_REQUISITOS = `📋 *REQUISITOS PARA RENTAR*
+─────────────────────
 
-✈️ *Si vienes de fuera (turista):*
+✈️ *Turista (vienes de fuera):*
 • INE o Pasaporte
 • Licencia de conducir vigente
 • Número de vuelo de llegada
 
-🏠 *Si vives en Mérida:*
+🏠 *Local (vives en Mérida):*
 • INE
 • Licencia de conducir vigente
 • Comprobante de domicilio a tu nombre
@@ -132,22 +137,24 @@ _Escribe *5* o *reservar* para apartar_
 _Escribe *0* para volver al menú_`;
 
 const MENU_UBICACION = `📍 *UBICACIÓN Y CONTACTO*
+─────────────────────
 
-📌 Manuel Crecencio Rejón, Mérida, Yucatán, CP 97255
-🕐 Abierto *24/7* los 365 días del año
+📌 Manuel Crecencio Rejón, Mérida, Yucatán
+🕐 Abierto *24/7*, los 365 días
 
-📞 Asesores:
+📞 *Asesores:*
 • ${CONFIG.telefonos.asesor1}
 • ${CONFIG.telefonos.asesor2}
 
 🌐 ${CONFIG.web}
 📧 ${CONFIG.email}
 
-🚗 *Entregamos en tu hotel y en el Tren Maya*
+🚗 Entregamos en tu *hotel* y en el *Tren Maya* 🚂
 
 _Escribe *0* para volver al menú_`;
 
 const MENU_ELEGIR_AUTO = `🚗 *¿Qué auto te interesa?*
+─────────────────────
 
 *1.* Básico (sedán económico) — *$700/día*
 *2.* Confort (sedán amplio) — *$800/día*
@@ -501,9 +508,9 @@ async function obtenerRespuesta(textoMensaje, jid) {
       reserva.data.totalSeguro = totalSeguro;
       reserva.data.totalFinal = totalFinal;
 
-      let resumen = `📝 *RESUMEN DE TU RESERVA*\n\n`;
+      let resumen = `📝 *RESUMEN DE TU RESERVA*\n─────────────────────\n\n`;
       resumen += `🚗 Auto: *${reserva.data.auto.tipo}*\n`;
-      resumen += `📅 Fechas: ${formatFecha(reserva.data.fechaInicio)} al ${formatFecha(reserva.data.fechaFin)}\n`;
+      resumen += `📅 ${formatFecha(reserva.data.fechaInicio)} → ${formatFecha(reserva.data.fechaFin)}\n`;
       resumen += `📆 Días: *${reserva.data.dias}*\n`;
       resumen += `💰 Renta: $${totalRenta.toLocaleString()} MXN\n`;
       if (reserva.data.fullCover) {
@@ -511,9 +518,9 @@ async function obtenerRespuesta(textoMensaje, jid) {
       } else {
         resumen += `🛡️ Seguro: Amplio incluido (10% deducible)\n`;
       }
-      resumen += `\n💵 *TOTAL: $${totalFinal.toLocaleString()} MXN*\n`;
-      resumen += `\n👤 ${reserva.data.nombre}\n📞 ${reserva.data.telefono}\n`;
-      resumen += `\n¿Todo correcto?\n\n*1.* ✅ Sí, confirmar reserva\n*2.* ❌ No, cancelar`;
+      resumen += `\n─────────────────────\n💵 *TOTAL: $${totalFinal.toLocaleString()} MXN*\n`;
+      resumen += `\n👤 ${reserva.data.nombre}\n📞 ${reserva.data.telefono}\n\n`;
+      resumen += `¿Todo correcto?\n\n*1.* ✅ Confirmar reserva\n*2.* ❌ Cancelar`;
 
       return resumen;
     }
@@ -542,15 +549,16 @@ async function obtenerRespuesta(textoMensaje, jid) {
         // Reset
         cancelarReserva(jid);
 
-        return `🎉 *¡Reserva registrada!*
+        return `🎉 *¡Reserva registrada exitosamente!*
+─────────────────────
 
 Un asesor te contactará pronto al *${lead.telefono}* para confirmar disponibilidad y coordinar la entrega.
 
-📞 Si necesitas algo urgente:
+📞 *¿Algo urgente?*
 • ${CONFIG.telefonos.asesor1}
 • ${CONFIG.telefonos.asesor2}
 
-¡Gracias por elegir *Chip Rent a Car*! 🚗
+¡Gracias por elegir *Chip Rent a Car*! 🚗✨
 
 _Escribe *0* para volver al menú_`;
       } else {
