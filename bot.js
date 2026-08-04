@@ -149,7 +149,7 @@ const MENU_UBICACION = `📍 *UBICACIÓN Y CONTACTO*
 🌐 ${CONFIG.web}
 📧 ${CONFIG.email}
 
-🚗 Entregamos en tu *hotel* y en el *Tren Maya* 🚂
+🚗 Entregamos en tu *hotel* y *Tren Maya* en *40 min* ⚡
 
 _Escribe *0* para volver al menú_`;
 

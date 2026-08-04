@@ -68,14 +68,14 @@ export const CONFIG = {
   },
 
   // ─── Entregas ───
-  entregas: "Se entrega en hotel y Tren Maya. Fuera del área de Mérida puede tener costo adicional.",
+  entregas: "Se entrega en tu hotel y Tren Maya en 40 minutos. Fuera del área de Mérida puede tener costo adicional.",
 
   // ─── Servicios incluidos ───
   serviciosIncluidos: [
     "Seguro amplio incluido (10% deducible)",
     "Kilometraje libre en toda la península de Yucatán",
     "Asistencia vial",
-    "Entrega en hotel y Tren Maya",
+    "Entrega en hotel y Tren Maya en 40 minutos",
   ],
 
   // ─── Métodos de pago ───
