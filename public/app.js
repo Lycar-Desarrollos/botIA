@@ -50,8 +50,9 @@ function setupEventListeners() {
   document.getElementById('btn-close-modal')?.addEventListener('click', closeLeadModal);
   document.getElementById('btn-modal-close-footer')?.addEventListener('click', closeLeadModal);
 
-  // Bot Restart
+  // Bot Restart & Logout
   document.getElementById('btn-restart-bot')?.addEventListener('click', restartBot);
+  document.getElementById('btn-reset-whatsapp')?.addEventListener('click', logoutWhatsAppSession);
 }
 
 // ------------------------------------------------------------
@@ -543,6 +544,21 @@ async function restartBot() {
     fetchBotStatus();
   } catch (err) {
     alert('Error al enviar la señal de reinicio.');
+  }
+}
+
+async function logoutWhatsAppSession() {
+  if (!confirm('¿Deseas desconectar WhatsApp y borrar la sesión actual?\nSe generará un código QR completamente nuevo.')) return;
+  try {
+    const res = await fetch('/api/bot/logout-whatsapp', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      fetchBotStatus();
+    } else {
+      alert('❌ Error al eliminar la sesión.');
+    }
+  } catch (err) {
+    alert('❌ Error de conexión al servidor.');
   }
 }
 

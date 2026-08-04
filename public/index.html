@@ -338,9 +338,18 @@
               <div class="info-pill"><i class="fa-solid fa-robot"></i> Modelo IA: <strong>Gemini 2.5 Flash</strong></div>
             </div>
 
-            <div class="bot-actions mt-8">
+            <div id="qr-container" class="qr-box mt-6 hidden">
+              <p style="font-weight: 500; margin-bottom: 0.75rem;">Escanea este código QR con WhatsApp en el iPhone:</p>
+              <div id="qr-code-img" style="margin: 0.5rem auto;"></div>
+              <small class="text-muted"><i class="fa-solid fa-gear"></i> Configuración &gt; Dispositivos vinculados &gt; Vincular dispositivo</small>
+            </div>
+
+            <div class="bot-actions mt-8" style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
               <button id="btn-restart-bot" class="btn btn-warning">
-                <i class="fa-solid fa-arrows-rotate"></i> Reiniciar Bot WhatsApp
+                <i class="fa-solid fa-arrows-rotate"></i> Reconectar Bot
+              </button>
+              <button id="btn-reset-whatsapp" class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">
+                <i class="fa-solid fa-trash-can"></i> Desconectar / Generar Nuevo QR
               </button>
             </div>
           </div>

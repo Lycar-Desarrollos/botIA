@@ -60,6 +60,7 @@ setInterval(() => {
 // ─── Estado global del Bot ───
 let botConnected = false;
 let currentQRDataUrl = null;
+let activeSock = null;
 
 // ─── Leads ───
 const LEADS_FILE = 'leads.json';
@@ -167,6 +168,25 @@ app.get('/api/bot/status', requireAuth, (req, res) => {
 app.post('/api/bot/restart', requireAuth, (req, res) => {
   iniciarBot();
   res.json({ success: true, message: 'Reiniciando bot...' });
+});
+
+app.post('/api/bot/logout-whatsapp', requireAuth, (req, res) => {
+  try {
+    botConnected = false;
+    currentQRDataUrl = null;
+    if (activeSock) {
+      try { activeSock.ev.removeAllListeners(); activeSock.end(); } catch {}
+      activeSock = null;
+    }
+    try {
+      fs.rmSync('auth_info_baileys', { recursive: true, force: true });
+    } catch {}
+    console.log('🗑️  Sesión WhatsApp eliminada desde la web. Generando nuevo QR...');
+    setTimeout(iniciarBot, 1000);
+    res.json({ success: true, message: 'Sesión eliminada. Generando nuevo QR...' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {
@@ -724,6 +744,7 @@ async function iniciarBot() {
     browser: Browsers.ubuntu('Chrome'),
     markOnlineOnConnect: false,
   });
+  activeSock = sock;
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr: qrCode } = update;
