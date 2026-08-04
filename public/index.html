@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHIP RENT A CAR — Panel de Control</title>
+  <!-- Google Fonts & FontAwesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ========================================== -->
+  <!-- 🔐 PANTALLA DE LOGIN                       -->
+  <!-- ========================================== -->
+  <div id="login-screen" class="login-wrapper">
+    <div class="login-bg-decoration">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+    </div>
+    
+    <div class="login-card glass-panel">
+      <div class="login-header">
+        <div class="logo-badge">
+          <i class="fa-solid fa-car-side"></i>
+        </div>
+        <h2>CHIP RENT A CAR</h2>
+        <p>Panel de Administración & Bot WA</p>
+      </div>
+
+      <form id="login-form">
+        <div id="login-error" class="alert alert-error hidden">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span id="login-error-msg">Usuario o contraseña incorrectos</span>
+        </div>
+
+        <div class="input-group">
+          <label for="username"><i class="fa-solid fa-user"></i> Usuario</label>
+          <input type="text" id="username" placeholder="Ingresa tu usuario" required autocomplete="username">
+        </div>
+
+        <div class="input-group">
+          <label for="password"><i class="fa-solid fa-lock"></i> Contraseña</label>
+          <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" id="btn-login" class="btn btn-primary btn-block">
+          <span>Iniciar Sesión</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <small><i class="fa-solid fa-shield-halved"></i> Sistema protegido &bull; Mérida, Yucatán</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 🖥️ MAIN DASHBOARD APP                      -->
+  <!-- ========================================== -->
+  <div id="app-screen" class="app-layout hidden">
+    
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon"><i class="fa-solid fa-car"></i></div>
+          <div class="brand-text">
+            <h3>CHIP BOT</h3>
+            <span>Admin Control</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="dashboard">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-tab="leads">
+          <i class="fa-solid fa-address-book"></i>
+          <span>Reservas & Leads</span>
+          <span id="badge-leads-count" class="nav-badge">0</span>
+        </button>
+        <button class="nav-item" data-tab="prices">
+          <i class="fa-solid fa-tags"></i>
+          <span>Autos y Precios</span>
+        </button>
+        <button class="nav-item" data-tab="bot-status">
+          <i class="fa-brands fa-whatsapp"></i>
+          <span>Estado WhatsApp</span>
+          <span id="bot-status-indicator" class="status-dot offline"></span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar"><i class="fa-solid fa-user-shield"></i></div>
+          <div class="user-details">
+            <strong id="user-display-name">Admin</strong>
+            <small>Administrador</small>
+          </div>
+        </div>
+        <button id="btn-logout" class="btn-icon" title="Cerrar sesión">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="header-title">
+          <h1 id="page-title">Dashboard Principal</h1>
+          <p id="page-subtitle">Resumen de operaciones y clientes en tiempo real</p>
+        </div>
+
+        <div class="header-actions">
+          <div class="bot-quick-badge" id="bot-quick-status">
+            <i class="fa-brands fa-whatsapp"></i>
+            <span id="bot-status-text">Verificando...</span>
+          </div>
+          <button id="btn-refresh" class="btn btn-secondary btn-sm" title="Actualizar datos">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Views Container -->
+      <div class="content-body">
+
+        <!-- TAB 1: DASHBOARD OVERVIEW -->
+        <section id="tab-dashboard" class="tab-page active">
+          
+          <!-- Stats Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon bg-blue"><i class="fa-solid fa-calendar-check"></i></div>
+              <div class="stat-data">
+                <span class="stat-label">Total Reservas</span>
+                <h2 id="stat-total-leads">0</h2>
+                <small class="stat-trend positive"><i class="fa-solid fa-arrow-up"></i> Leads registrados</small>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon bg-emerald"><i class="fa-solid fa-sack-dollar"></i></div>
+              <div class="stat-data">
+                <span class="stat-label">Ingresos Estimados</span>
+                <h2 id="stat-estimated-revenue">$0 MXN</h2>
+                <small class="stat-trend neutral"><i class="fa-solid fa-circle-info"></i> Valor acumulado</small>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon bg-purple"><i class="fa-solid fa-car-side"></i></div>
+              <div class="stat-data">
+                <span class="stat-label">Auto Más Cotizado</span>
+                <h2 id="stat-popular-car">-</h2>
+                <small class="stat-trend neutral">Preferencia principal</small>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon bg-amber"><i class="fa-brands fa-whatsapp"></i></div>
+              <div class="stat-data">
+                <span class="stat-label">Estado de Bot</span>
+                <h2 id="stat-bot-connection">Offline</h2>
+                <small id="stat-bot-detail" class="stat-trend">Desconectado</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Leads Section -->
+          <div class="card-panel mt-6">
+            <div class="card-panel-header">
+              <div>
+                <h3>Últimas Reservas Capturadas</h3>
+                <p>Clientes que completaron el flujo por WhatsApp</p>
+              </div>
+              <button class="btn btn-outline btn-sm" id="btn-view-all-leads">
+                Ver todas <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Auto</th>
+                    <th>Fechas Renta</th>
+                    <th>Días</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-leads-table-body">
+                  <tr>
+                    <td colspan="7" class="text-center py-6 text-muted">Cargando reservas...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- TAB 2: LEADS & RESERVAS -->
+        <section id="tab-leads" class="tab-page">
+          <div class="card-panel">
+            
+            <!-- Filter Bar -->
+            <div class="table-toolbar">
+              <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-lead" placeholder="Buscar por nombre, teléfono o auto...">
+              </div>
+
+              <div class="filter-actions">
+                <select id="filter-status" class="form-select">
+                  <option value="all">Todos los estados</option>
+                  <option value="Pendiente">Pendientes</option>
+                  <option value="Contactado">Contactados</option>
+                  <option value="Confirmado">Confirmados</option>
+                  <option value="Cancelado">Cancelados</option>
+                </select>
+
+                <button id="btn-export-csv" class="btn btn-secondary">
+                  <i class="fa-solid fa-file-csv"></i> Exportar CSV
+                </button>
+              </div>
+            </div>
+
+            <!-- Full Leads Table -->
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Fecha / Hora</th>
+                    <th>Cliente</th>
+                    <th>Teléfono</th>
+                    <th>Auto Solicitado</th>
+                    <th>Periodo Renta</th>
+                    <th>Cobertura</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="full-leads-table-body">
+                  <tr>
+                    <td colspan="9" class="text-center py-6 text-muted">Cargando reservas...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- TAB 3: PRECIOS Y AUTOS -->
+        <section id="tab-prices" class="tab-page">
+          <div class="grid-2-col">
+            
+            <!-- Tarifa por Día -->
+            <div class="card-panel">
+              <div class="card-panel-header">
+                <div>
+                  <h3>🚗 Tarifas de Renta por Día</h3>
+                  <p>Ajusta el precio diario visible para los clientes</p>
+                </div>
+              </div>
+
+              <form id="form-prices-cars">
+                <div id="cars-price-list" class="price-inputs-grid">
+                  <!-- Dynamically populated -->
+                </div>
+                <div class="mt-4 text-right">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Tarifas de Seguro Full Cover -->
+            <div class="card-panel">
+              <div class="card-panel-header">
+                <div>
+                  <h3>🛡️ Tarifas Seguro Full Cover</h3>
+                  <p>Precios del seguro opcional (0% deducible) por categoría</p>
+                </div>
+              </div>
+
+              <form id="form-prices-insurance">
+                <div id="insurance-price-list" class="price-inputs-grid">
+                  <!-- Dynamically populated -->
+                </div>
+                <div class="mt-4 text-right">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                  </button>
+                </div>
+              </form>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- TAB 4: ESTADO DE WHATSAPP -->
+        <section id="tab-bot-status" class="tab-page">
+          <div class="card-panel text-center py-8">
+            <div id="bot-status-big-icon" class="status-big-badge offline">
+              <i class="fa-brands fa-whatsapp"></i>
+            </div>
+
+            <h2 id="bot-status-big-title" class="mt-4">Verificando estado...</h2>
+            <p id="bot-status-big-desc" class="text-muted">Conectando con el servidor Baileys...</p>
+
+            <div class="bot-info-pills mt-6">
+              <div class="info-pill"><i class="fa-solid fa-phone"></i> Número: <strong id="bot-phone-display">+52 1 999 904 0931</strong></div>
+              <div class="info-pill"><i class="fa-solid fa-robot"></i> Modelo IA: <strong>Gemini 2.5 Flash</strong></div>
+            </div>
+
+            <div class="bot-actions mt-8">
+              <button id="btn-restart-bot" class="btn btn-warning">
+                <i class="fa-solid fa-arrows-rotate"></i> Reiniciar Bot WhatsApp
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Lead Details -->
+  <div id="modal-lead-detail" class="modal-backdrop hidden">
+    <div class="modal-card glass-panel">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-invoice"></i> Detalle de Reserva</h3>
+        <button class="modal-close" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-lead-body">
+        <!-- Dynamic content -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-modal-close-footer">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

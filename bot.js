@@ -15,6 +15,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import qrcode from 'qrcode-terminal';
 import { CONFIG } from './config.js';
 import fs from 'fs';
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import cookieParser from 'cookie-parser';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ─── Validar API Key ───
 if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'PEGA_TU_API_KEY_AQUI') {
@@ -48,6 +56,9 @@ setInterval(() => {
   console.log(`🧹 Limpieza: ${conversaciones.size} conversaciones activas`);
 }, 30 * 60 * 1000);
 
+// ─── Estado global del Bot ───
+let botConnected = false;
+
 // ─── Leads ───
 const LEADS_FILE = 'leads.json';
 function cargarLeads() {
@@ -60,6 +71,106 @@ function guardarLead(lead) {
   fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf-8');
   console.log(`📋 Nuevo lead guardado: ${lead.nombre} - ${lead.auto}`);
 }
+function actualizarEstadoLead(timestamp, nuevoEstado) {
+  const leads = cargarLeads();
+  const lead = leads.find(l => l.timestamp === timestamp);
+  if (lead) {
+    lead.status = nuevoEstado;
+    fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf-8');
+    return true;
+  }
+  return false;
+}
+
+// ============================================================
+// 🌐 SERVIDOR WEB EXPRESS & REST API (PANEL DE CONTROL)
+// ============================================================
+const app = express();
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'chip_rentacar_secret_key_2026_super_secure';
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASS = process.env.ADMIN_PASS || 'chip2026';
+
+app.use(express.json());
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Middleware Autenticación
+function requireAuth(req, res, next) {
+  const token = req.cookies.auth_token;
+  if (!token) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+}
+
+// Rutas Auth
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '24h' });
+    res.cookie('auth_token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
+    return res.json({ success: true, username });
+  }
+  return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos' });
+});
+
+app.get('/api/auth/check', (req, res) => {
+  const token = req.cookies.auth_token;
+  if (!token) return res.json({ authenticated: false });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return res.json({ authenticated: true, user: decoded.username });
+  } catch {
+    return res.json({ authenticated: false });
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('auth_token');
+  res.json({ success: true });
+});
+
+// Rutas Protegidas API
+app.get('/api/leads', requireAuth, (req, res) => {
+  res.json(cargarLeads());
+});
+
+app.put('/api/leads/status', requireAuth, (req, res) => {
+  const { timestamp, status } = req.body;
+  const ok = actualizarEstadoLead(timestamp, status);
+  if (ok) res.json({ success: true });
+  else res.status(404).json({ error: 'Lead no encontrado' });
+});
+
+app.get('/api/config', requireAuth, (req, res) => {
+  res.json({ autos: CONFIG.autos, seguros: CONFIG.seguros });
+});
+
+app.put('/api/config', requireAuth, (req, res) => {
+  const { autos, seguros } = req.body;
+  if (autos) CONFIG.autos = autos;
+  if (seguros) CONFIG.seguros = seguros;
+  res.json({ autos: CONFIG.autos, seguros: CONFIG.seguros });
+});
+
+app.get('/api/bot/status', requireAuth, (req, res) => {
+  res.json({ connected: botConnected, activeConversations: conversaciones.size });
+});
+
+app.post('/api/bot/restart', requireAuth, (req, res) => {
+  iniciarBot();
+  res.json({ success: true, message: 'Reiniciando bot...' });
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 Panel de Control Web activo en: http://localhost:${PORT}`);
+});
+
 
 // ============================================================
 // 📋 MENÚS
@@ -622,6 +733,7 @@ async function iniciarBot() {
     }
 
     if (connection === 'close') {
+      botConnected = false;
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       console.log(`\n⚠️  Conexión cerrada. Código: ${statusCode}`);
@@ -643,6 +755,7 @@ async function iniciarBot() {
     }
 
     if (connection === 'open') {
+      botConnected = true;
       console.log('✅ ¡Conectado exitosamente a WhatsApp!');
       console.log('🤖 Bot activo y respondiendo.');
       console.log('📊 Presiona Ctrl+C para detener.\n');
