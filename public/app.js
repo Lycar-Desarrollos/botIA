@@ -71,6 +71,9 @@ function setupEventListeners() {
   document.getElementById('form-quote-generator')?.addEventListener('submit', handlePrintQuote);
   document.getElementById('btn-print-quote')?.addEventListener('click', handlePrintQuote);
   document.getElementById('btn-preview-quote')?.addEventListener('click', handlePreviewQuote);
+  document.getElementById('btn-close-quote-modal')?.addEventListener('click', closeQuoteModal);
+  document.getElementById('btn-close-quote-footer')?.addEventListener('click', closeQuoteModal);
+  document.getElementById('btn-modal-do-print')?.addEventListener('click', () => window.print());
 }
 
 // ------------------------------------------------------------
@@ -830,25 +833,32 @@ function getQuoteFormData() {
   };
 }
 
+function openQuoteModal(html) {
+  const modal = document.getElementById('modal-quote-preview');
+  const body = document.getElementById('quote-preview-body');
+  if (modal && body) {
+    body.innerHTML = html;
+    modal.classList.remove('hidden');
+  }
+}
+
+function closeQuoteModal() {
+  const modal = document.getElementById('modal-quote-preview');
+  if (modal) modal.classList.add('hidden');
+}
+
 function handlePrintQuote(e) {
   if (e) e.preventDefault();
   const data = getQuoteFormData();
   const html = generateQuoteHTML(data);
-  const win = window.open('', '_blank');
-  win.document.write(html);
-  win.document.close();
-  setTimeout(() => {
-    win.focus();
-    win.print();
-  }, 500);
+  openQuoteModal(html);
+  setTimeout(() => window.print(), 300);
 }
 
 function handlePreviewQuote() {
   const data = getQuoteFormData();
   const html = generateQuoteHTML(data);
-  const win = window.open('', '_blank');
-  win.document.write(html);
-  win.document.close();
+  openQuoteModal(html);
 }
 
 function generateQuoteHTML(d) {
