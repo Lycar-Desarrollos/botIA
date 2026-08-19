@@ -106,13 +106,34 @@ function guardarContactosExcluidos(lista) {
     return false;
   }
 }
+function resolverTelefonoReal(jid) {
+  if (!jid) return '';
+  const clean = jid.split('@')[0];
+  if (jid.endsWith('@lid')) {
+    try {
+      const lidFile = path.join(__dirname, 'auth_info_baileys', `lid-mapping-${clean}_reverse.json`);
+      if (fs.existsSync(lidFile)) {
+        const phone = JSON.parse(fs.readFileSync(lidFile, 'utf-8'));
+        if (phone) return String(phone).replace(/\D/g, '');
+      }
+    } catch {}
+  }
+  return clean.replace(/\D/g, '');
+}
+
 function esContactoExcluido(jid) {
   if (!jid) return false;
   const excluidos = cargarContactosExcluidos();
-  const num = jid.replace(/\D/g, '');
+  const numJid = jid.replace(/\D/g, '');
+  const numReal = resolverTelefonoReal(jid);
+
   return excluidos.some(e => {
     const eNum = String(typeof e === 'object' ? (e.telefono || '') : e).replace(/\D/g, '');
-    return eNum.length >= 7 && (num.endsWith(eNum) || num.includes(eNum));
+    if (eNum.length < 7) return false;
+    return (
+      (numReal && (numReal.endsWith(eNum) || numReal.includes(eNum))) ||
+      (numJid && (numJid.endsWith(eNum) || numJid.includes(eNum)))
+    );
   });
 }
 
