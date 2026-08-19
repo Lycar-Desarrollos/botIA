@@ -85,6 +85,16 @@ function actualizarEstadoLead(timestamp, nuevoEstado) {
   }
   return false;
 }
+function eliminarLead(timestamp) {
+  let leads = cargarLeads();
+  const inicial = leads.length;
+  leads = leads.filter(l => l.timestamp !== timestamp);
+  if (leads.length !== inicial) {
+    fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf-8');
+    return true;
+  }
+  return false;
+}
 
 // ─── Contactos Excluidos (Personales / Familiares) ───
 const EXCLUIDOS_FILE = 'contactos_excluidos.json';
@@ -200,6 +210,13 @@ app.put('/api/leads/status', requireAuth, (req, res) => {
   const ok = actualizarEstadoLead(timestamp, status);
   if (ok) res.json({ success: true });
   else res.status(404).json({ error: 'Lead no encontrado' });
+});
+
+app.delete('/api/leads/:timestamp', requireAuth, (req, res) => {
+  const { timestamp } = req.params;
+  const ok = eliminarLead(timestamp);
+  if (ok) res.json({ success: true, message: 'Reserva eliminada' });
+  else res.status(404).json({ error: 'Reserva no encontrada' });
 });
 
 app.get('/api/contactos-excluidos', requireAuth, (req, res) => {

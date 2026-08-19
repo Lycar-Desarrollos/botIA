@@ -126,6 +126,19 @@
         </div>
 
         <div class="header-actions">
+          <div class="auto-refresh-box" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.35rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+            <i class="fa-solid fa-arrows-rotate" style="font-size: 0.8rem; color: #94a3b8;"></i>
+            <span style="font-size: 0.8rem; color: #cbd5e1;">Auto-refresco:</span>
+            <select id="select-refresh-interval" class="form-control" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; height: auto; width: auto; background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.15); color: white; border-radius: 6px; cursor: pointer;">
+              <option value="3000">Cada 3 seg</option>
+              <option value="5000" selected>Cada 5 seg</option>
+              <option value="10000">Cada 10 seg</option>
+              <option value="30000">Cada 30 seg</option>
+              <option value="60000">Cada 1 min</option>
+              <option value="0">Desactivado (Manual)</option>
+            </select>
+          </div>
+
           <div class="bot-quick-badge" id="bot-quick-status">
             <i class="fa-brands fa-whatsapp"></i>
             <span id="bot-status-text">Verificando...</span>
@@ -424,7 +437,10 @@
       <div class="modal-body" id="modal-lead-body">
         <!-- Dynamic content -->
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn btn-secondary" id="btn-modal-delete-lead" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">
+          <i class="fa-solid fa-trash"></i> Eliminar Reserva
+        </button>
         <button class="btn btn-secondary" id="btn-modal-close-footer">Cerrar</button>
       </div>
     </div>

@@ -46,9 +46,25 @@ function setupEventListeners() {
   document.getElementById('form-prices-cars')?.addEventListener('submit', handleSaveCarPrices);
   document.getElementById('form-prices-insurance')?.addEventListener('submit', handleSaveInsurancePrices);
 
-  // Modal Close
+  // Modal Close & Delete
   document.getElementById('btn-close-modal')?.addEventListener('click', closeLeadModal);
   document.getElementById('btn-modal-close-footer')?.addEventListener('click', closeLeadModal);
+  document.getElementById('btn-modal-delete-lead')?.addEventListener('click', () => {
+    if (currentViewingLeadTimestamp) {
+      deleteLead(currentViewingLeadTimestamp);
+      closeLeadModal();
+    }
+  });
+
+  // Auto-Refresh Interval Selector
+  const selectInterval = document.getElementById('select-refresh-interval');
+  if (selectInterval) {
+    const saved = localStorage.getItem('dashboard_refresh_interval') || '5000';
+    selectInterval.value = saved;
+    selectInterval.addEventListener('change', (e) => {
+      setRefreshInterval(parseInt(e.target.value, 10));
+    });
+  }
 
   // Bot Restart & Logout
   document.getElementById('btn-restart-bot')?.addEventListener('click', restartBot);
@@ -118,11 +134,27 @@ async function handleLogout() {
 }
 
 let statusInterval = null;
+let dashboardAutoRefreshTimer = null;
+
+function setRefreshInterval(ms) {
+  localStorage.setItem('dashboard_refresh_interval', ms);
+  if (dashboardAutoRefreshTimer) {
+    clearInterval(dashboardAutoRefreshTimer);
+    dashboardAutoRefreshTimer = null;
+  }
+  if (ms > 0) {
+    dashboardAutoRefreshTimer = setInterval(loadDashboardData, ms);
+  }
+}
 
 function showLoginScreen() {
   if (statusInterval) {
     clearInterval(statusInterval);
     statusInterval = null;
+  }
+  if (dashboardAutoRefreshTimer) {
+    clearInterval(dashboardAutoRefreshTimer);
+    dashboardAutoRefreshTimer = null;
   }
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app-screen').classList.add('hidden');
@@ -133,6 +165,9 @@ function showAppScreen(username) {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-screen').classList.remove('hidden');
   loadDashboardData();
+
+  const savedMs = parseInt(localStorage.getItem('dashboard_refresh_interval') || '5000', 10);
+  setRefreshInterval(savedMs);
 
   if (!statusInterval) {
     statusInterval = setInterval(fetchBotStatus, 3000);
@@ -308,7 +343,10 @@ function renderLeadsTable() {
           </select>
         </td>
         <td>
-          <button class="btn-icon" onclick="viewLeadDetail('${lead.timestamp}')" title="Ver detalles"><i class="fa-solid fa-eye"></i></button>
+          <div style="display: flex; gap: 0.35rem; align-items: center;">
+            <button class="btn-icon" onclick="viewLeadDetail('${lead.timestamp}')" title="Ver detalles"><i class="fa-solid fa-eye"></i></button>
+            <button class="btn-icon" onclick="deleteLead('${lead.timestamp}')" title="Eliminar reserva" style="color: #f87171;"><i class="fa-solid fa-trash"></i></button>
+          </div>
         </td>
       </tr>
     `;
@@ -343,10 +381,13 @@ async function updateLeadStatus(timestamp, newStatus) {
   }
 }
 
+let currentViewingLeadTimestamp = null;
+
 function viewLeadDetail(timestamp) {
   const lead = currentLeads.find(l => l.timestamp === timestamp);
   if (!lead) return;
 
+  currentViewingLeadTimestamp = timestamp;
   const modalBody = document.getElementById('modal-lead-body');
   modalBody.innerHTML = `
     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -365,7 +406,31 @@ function viewLeadDetail(timestamp) {
 }
 
 function closeLeadModal() {
+  currentViewingLeadTimestamp = null;
   document.getElementById('modal-lead-detail').classList.add('hidden');
+}
+
+async function deleteLead(timestamp) {
+  const lead = currentLeads.find(l => l.timestamp === timestamp);
+  const nombre = lead ? (lead.nombre || 'esta reserva') : 'esta reserva';
+  if (!confirm(`¿Estás seguro de eliminar la reserva de "${nombre}"?\nEsta acción no se puede deshacer.`)) return;
+
+  try {
+    const res = await fetch(`/api/leads/${encodeURIComponent(timestamp)}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      currentLeads = currentLeads.filter(l => l.timestamp !== timestamp);
+      updateStats();
+      renderRecentLeadsTable();
+      renderLeadsTable();
+    } else {
+      alert('Error al eliminar la reserva.');
+    }
+  } catch (err) {
+    alert('Error al conectar con el servidor.');
+  }
 }
 
 function exportLeadsCSV() {
