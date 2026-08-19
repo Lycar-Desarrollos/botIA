@@ -620,10 +620,16 @@ IMPORTANTE: Responde de forma breve, amable y natural. Si el cliente pregunta al
 `.trim();
 }
 
-const PROMPT_SISTEMA = construirPromptSistema();
-const model = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash',
-  systemInstruction: PROMPT_SISTEMA,
+const MODEL_NAMES = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+const modelInstances = {};
+
+MODEL_NAMES.forEach(m => {
+  try {
+    modelInstances[m] = genAI.getGenerativeModel({
+      model: m,
+      systemInstruction: PROMPT_SISTEMA,
+    });
+  } catch (e) {}
 });
 
 // ============================================================
@@ -666,27 +672,31 @@ function esMenuVolver(texto) {
 }
 
 async function obtenerRespuestaIA(mensajeUsuario, jid) {
-  try {
-    const conv = getConv(jid);
-    conv.historial.push({ role: 'user', parts: [{ text: mensajeUsuario }] });
+  const conv = getConv(jid);
+  conv.historial.push({ role: 'user', parts: [{ text: mensajeUsuario }] });
 
-    while (conv.historial.length > CONFIG.maxHistorial * 2) {
-      conv.historial.shift();
-    }
-
-    const chat = model.startChat({ history: conv.historial.slice(0, -1) });
-    const result = await chat.sendMessage(mensajeUsuario);
-    const respuesta = result.response.text();
-
-    conv.historial.push({ role: 'model', parts: [{ text: respuesta }] });
-    return respuesta;
-  } catch (error) {
-    console.error('❌ Error con Gemini:', error.message);
-    if (error.message?.includes('429') || error.message?.includes('quota')) {
-      return 'Ahorita tenemos mucha demanda, intenta en unos minutos o márcanos al ' + CONFIG.telefonos.asesor1 + ' 📞';
-    }
-    return 'Disculpa, no pude procesar tu mensaje. Márcanos al ' + CONFIG.telefonos.asesor1 + ' 📞';
+  while (conv.historial.length > CONFIG.maxHistorial * 2) {
+    conv.historial.shift();
   }
+
+  // Intentar secuencialmente con modelos de respaldo si uno agota cuota (429)
+  for (const modelName of MODEL_NAMES) {
+    try {
+      const modelInst = modelInstances[modelName] || genAI.getGenerativeModel({ model: modelName, systemInstruction: PROMPT_SISTEMA });
+      const chat = modelInst.startChat({ history: conv.historial.slice(0, -1) });
+      const result = await chat.sendMessage(mensajeUsuario);
+      const respuesta = result.response.text();
+
+      conv.historial.push({ role: 'model', parts: [{ text: respuesta }] });
+      return respuesta;
+    } catch (error) {
+      console.warn(`⚠️ Modelo ${modelName} en límite o con error (${error.message.substring(0, 80)}...). Probando siguiente respaldo...`);
+    }
+  }
+
+  // Fallback si todos los modelos fallan por cuota gratuita
+  conv.historial.pop();
+  return `¡Anotado! En un momento te contacta el asesor *Oscar* para atenderte personalmente 📞\n\n📱 *Teléfonos directos:*\n• ${CONFIG.telefonos.asesor1}\n• ${CONFIG.telefonos.asesor2}`;
 }
 
 // ─── Respuesta principal ───
