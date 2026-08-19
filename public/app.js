@@ -56,15 +56,8 @@ function setupEventListeners() {
     }
   });
 
-  // Auto-Refresh Interval Selector
-  const selectInterval = document.getElementById('select-refresh-interval');
-  if (selectInterval) {
-    const saved = localStorage.getItem('dashboard_refresh_interval') || '5000';
-    selectInterval.value = saved;
-    selectInterval.addEventListener('change', (e) => {
-      setRefreshInterval(parseInt(e.target.value, 10));
-    });
-  }
+  // Metrics Period Filter Selector
+  document.getElementById('select-metrics-period')?.addEventListener('change', updateStats);
 
   // Bot Restart & Logout
   document.getElementById('btn-restart-bot')?.addEventListener('click', restartBot);
@@ -240,16 +233,38 @@ async function fetchLeads() {
 }
 
 function updateStats() {
+  const period = document.getElementById('select-metrics-period')?.value || 'todo';
+  const now = new Date();
+
+  // Filtrar leads según el periodo seleccionado
+  const leadsFiltrados = currentLeads.filter(lead => {
+    if (period === 'todo') return true;
+    if (!lead.timestamp) return true;
+    const fechaLead = new Date(lead.timestamp);
+
+    if (period === 'hoy') {
+      return fechaLead.toDateString() === now.toDateString();
+    }
+    if (period === '7dias') {
+      const hace7Dias = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return fechaLead >= hace7Dias;
+    }
+    if (period === 'mes') {
+      return fechaLead.getMonth() === now.getMonth() && fechaLead.getFullYear() === now.getFullYear();
+    }
+    return true;
+  });
+
   // Total count
-  const totalLeads = currentLeads.length;
+  const totalLeads = leadsFiltrados.length;
   document.getElementById('stat-total-leads').textContent = totalLeads;
-  document.getElementById('badge-leads-count').textContent = totalLeads;
+  document.getElementById('badge-leads-count').textContent = currentLeads.length;
 
   // Calculate estimated total revenue
   let totalRevenue = 0;
   const carCounts = {};
 
-  currentLeads.forEach(l => {
+  leadsFiltrados.forEach(l => {
     // Parse totalFinal numeric value
     if (l.totalFinal) {
       const val = parseInt(l.totalFinal.replace(/[^0-9]/g, ''), 10);
