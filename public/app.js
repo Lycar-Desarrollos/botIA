@@ -53,6 +53,9 @@ function setupEventListeners() {
   // Bot Restart & Logout
   document.getElementById('btn-restart-bot')?.addEventListener('click', restartBot);
   document.getElementById('btn-reset-whatsapp')?.addEventListener('click', logoutWhatsAppSession);
+
+  // Excluded Contacts Form
+  document.getElementById('form-add-excluded')?.addEventListener('submit', handleAddExcludedContact);
 }
 
 // ------------------------------------------------------------
@@ -156,6 +159,7 @@ function switchTab(tabName) {
     'dashboard': { title: 'Dashboard Principal', sub: 'Resumen de operaciones y clientes en tiempo real' },
     'leads': { title: 'Gestión de Reservas', sub: 'Lista completa de leads capturados por el bot' },
     'prices': { title: 'Tarifas y Precios', sub: 'Edición de costos de renta y seguros' },
+    'excluded-contacts': { title: 'Contactos Personales', sub: 'Números excluidos para los cuales el bot guarda silencio' },
     'bot-status': { title: 'Estado de WhatsApp', sub: 'Monitoreo de conexión y sesión Baileys' }
   };
 
@@ -172,7 +176,8 @@ async function loadDashboardData() {
   await Promise.all([
     fetchLeads(),
     fetchBotStatus(),
-    fetchConfig()
+    fetchConfig(),
+    fetchExcludedContacts()
   ]);
 
   if (refreshBtn) refreshBtn.classList.remove('fa-spin');
@@ -556,6 +561,105 @@ async function logoutWhatsAppSession() {
     }
   } catch (err) {
     alert('❌ Error de conexión al servidor.');
+  }
+}
+
+// ------------------------------------------------------------
+// 🚫 CONTACTOS EXCLUIDOS (PERSONALES)
+// ------------------------------------------------------------
+
+let currentExcludedContacts = [];
+
+async function fetchExcludedContacts() {
+  try {
+    const res = await fetch('/api/contactos-excluidos');
+    if (!res.ok) return;
+    currentExcludedContacts = await res.json();
+    renderExcludedContactsTable();
+  } catch (err) {
+    console.error('Error cargando contactos excluidos:', err);
+  }
+}
+
+function renderExcludedContactsTable() {
+  const tbody = document.getElementById('excluded-contacts-table-body');
+  if (!tbody) return;
+
+  if (!currentExcludedContacts.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-muted">No hay contactos excluidos registrados. Todos los números son atendidos por el bot.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = currentExcludedContacts.map(c => {
+    const tel = typeof c === 'object' ? (c.telefono || '') : c;
+    const nombre = typeof c === 'object' ? (c.nombre || 'Contacto personal') : 'Personal';
+    const nota = typeof c === 'object' ? (c.nota || '-') : '-';
+    const fecha = typeof c === 'object' && c.fecha ? new Date(c.fecha).toLocaleDateString('es-MX') : '-';
+
+    return `
+      <tr>
+        <td><strong>${escapeHtml(tel)}</strong></td>
+        <td>${escapeHtml(nombre)}</td>
+        <td><span class="badge" style="background: rgba(255,255,255,0.08);">${escapeHtml(nota)}</span></td>
+        <td><small class="text-muted">${fecha}</small></td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="handleDeleteExcludedContact('${escapeHtml(tel)}')" style="color: #fca5a5; border-color: rgba(239,68,68,0.3);">
+            <i class="fa-solid fa-trash"></i> Eliminar
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function handleAddExcludedContact(e) {
+  e.preventDefault();
+  const phoneInput = document.getElementById('excluded-phone-input');
+  const nameInput = document.getElementById('excluded-name-input');
+  const noteInput = document.getElementById('excluded-note-input');
+
+  const telefono = phoneInput.value.trim();
+  const nombre = nameInput.value.trim();
+  const nota = noteInput.value.trim();
+
+  if (!telefono) return;
+
+  try {
+    const res = await fetch('/api/contactos-excluidos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telefono, nombre, nota })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      phoneInput.value = '';
+      nameInput.value = '';
+      noteInput.value = '';
+      fetchExcludedContacts();
+    } else {
+      alert('Error al agregar contacto.');
+    }
+  } catch (err) {
+    alert('Error al conectar con el servidor.');
+  }
+}
+
+async function handleDeleteExcludedContact(telefono) {
+  if (!confirm(`¿Eliminar ${telefono} de la lista de exclusión?\nEl bot volverá a responderle si escribe.`)) return;
+
+  try {
+    const res = await fetch(`/api/contactos-excluidos/${encodeURIComponent(telefono)}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      fetchExcludedContacts();
+    } else {
+      alert('Error al eliminar contacto.');
+    }
+  } catch (err) {
+    alert('Error al conectar con el servidor.');
   }
 }
 

@@ -90,6 +90,10 @@
           <i class="fa-solid fa-tags"></i>
           <span>Autos y Precios</span>
         </button>
+        <button class="nav-item" data-tab="excluded-contacts">
+          <i class="fa-solid fa-user-slash"></i>
+          <span>Contactos Personales</span>
+        </button>
         <button class="nav-item" data-tab="bot-status">
           <i class="fa-brands fa-whatsapp"></i>
           <span>Estado WhatsApp</span>
@@ -323,7 +327,58 @@
           </div>
         </section>
 
-        <!-- TAB 4: ESTADO DE WHATSAPP -->
+        <!-- TAB 4: CONTACTOS EXCLUIDOS (PERSONALES) -->
+        <section id="tab-excluded-contacts" class="tab-page">
+          <div class="card-panel">
+            <div class="card-panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+              <div>
+                <h3>🚫 Contactos Personales / Excluidos del Bot</h3>
+                <p>El bot guardará silencio absoluto cuando estos números escriban, permitiéndote chatear manualmente.</p>
+              </div>
+            </div>
+
+            <!-- Form para agregar nuevo contacto -->
+            <form id="form-add-excluded" class="mt-4" style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) 140px; gap: 1rem; align-items: end;">
+                <div class="form-group mb-0">
+                  <label>Número WhatsApp (con lada):</label>
+                  <input type="text" id="excluded-phone-input" class="form-control" placeholder="Ej: 9991234567" required>
+                </div>
+                <div class="form-group mb-0">
+                  <label>Nombre / Parentesco:</label>
+                  <input type="text" id="excluded-name-input" class="form-control" placeholder="Ej: Mamá, Hermano, Amigo...">
+                </div>
+                <div class="form-group mb-0">
+                  <label>Nota (opcional):</label>
+                  <input type="text" id="excluded-note-input" class="form-control" placeholder="Ej: Personal">
+                </div>
+                <button type="submit" class="btn btn-primary" style="height: 42px;">
+                  <i class="fa-solid fa-plus"></i> Agregar
+                </button>
+              </div>
+            </form>
+
+            <!-- Tabla de contactos excluidos -->
+            <div class="table-responsive mt-6">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Teléfono</th>
+                    <th>Nombre / Identificador</th>
+                    <th>Nota</th>
+                    <th>Fecha Agregado</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="excluded-contacts-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: ESTADO DE WHATSAPP -->
         <section id="tab-bot-status" class="tab-page">
           <div class="card-panel text-center py-8">
             <div id="bot-status-big-icon" class="status-big-badge offline">

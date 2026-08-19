@@ -86,6 +86,36 @@ function actualizarEstadoLead(timestamp, nuevoEstado) {
   return false;
 }
 
+// ─── Contactos Excluidos (Personales / Familiares) ───
+const EXCLUIDOS_FILE = 'contactos_excluidos.json';
+function cargarContactosExcluidos() {
+  try {
+    if (!fs.existsSync(EXCLUIDOS_FILE)) {
+      fs.writeFileSync(EXCLUIDOS_FILE, JSON.stringify(CONFIG.contactosExcluidosDefault || [], null, 2));
+    }
+    return JSON.parse(fs.readFileSync(EXCLUIDOS_FILE, 'utf-8'));
+  } catch {
+    return [];
+  }
+}
+function guardarContactosExcluidos(lista) {
+  try {
+    fs.writeFileSync(EXCLUIDOS_FILE, JSON.stringify(lista, null, 2), 'utf-8');
+    return true;
+  } catch {
+    return false;
+  }
+}
+function esContactoExcluido(jid) {
+  if (!jid) return false;
+  const excluidos = cargarContactosExcluidos();
+  const num = jid.replace(/\D/g, '');
+  return excluidos.some(e => {
+    const eNum = String(typeof e === 'object' ? (e.telefono || '') : e).replace(/\D/g, '');
+    return eNum.length >= 7 && (num.endsWith(eNum) || num.includes(eNum));
+  });
+}
+
 // ============================================================
 // 🌐 SERVIDOR WEB EXPRESS & REST API (PANEL DE CONTROL)
 // ============================================================
@@ -151,6 +181,30 @@ app.put('/api/leads/status', requireAuth, (req, res) => {
   else res.status(404).json({ error: 'Lead no encontrado' });
 });
 
+app.get('/api/contactos-excluidos', requireAuth, (req, res) => {
+  res.json(cargarContactosExcluidos());
+});
+
+app.post('/api/contactos-excluidos', requireAuth, (req, res) => {
+  const { telefono, nombre, nota } = req.body;
+  if (!telefono) return res.status(400).json({ error: 'Teléfono requerido' });
+  const lista = cargarContactosExcluidos();
+  const limpio = telefono.replace(/\D/g, '');
+  if (!lista.some(item => (typeof item === 'object' ? item.telefono : item).replace(/\D/g, '') === limpio)) {
+    lista.push({ telefono, nombre: nombre || 'Contacto personal', nota: nota || '', fecha: new Date().toISOString() });
+    guardarContactosExcluidos(lista);
+  }
+  res.json({ success: true, lista });
+});
+
+app.delete('/api/contactos-excluidos/:telefono', requireAuth, (req, res) => {
+  const tel = req.params.telefono.replace(/\D/g, '');
+  let lista = cargarContactosExcluidos();
+  lista = lista.filter(item => (typeof item === 'object' ? item.telefono : item).replace(/\D/g, '') !== tel);
+  guardarContactosExcluidos(lista);
+  res.json({ success: true, lista });
+});
+
 app.get('/api/config', requireAuth, (req, res) => {
   res.json({ autos: CONFIG.autos, seguros: CONFIG.seguros });
 });
@@ -202,36 +256,57 @@ app.listen(PORT, () => {
 
 
 // ============================================================
-// 📋 MENÚS
+// 📋 MENÚS Y PLANTILLAS
 // ============================================================
 
 const MENU_PRINCIPAL = `👋 ¡Hola! Bienvenido a *CHIP RENT A CAR* 🚗
 _Renta de autos en Mérida, Yucatán_
 
 ─────────────────────
-¿En qué te puedo ayudar?
+¿En qué te podemos ayudar hoy?
 ─────────────────────
 
-*1.* 🚗 Ver autos y precios
+*1.* 🚗 Catálogo de autos y precios
 *2.* 🛡️ Seguros y coberturas
 *3.* 📋 Requisitos para rentar
 *4.* 📍 Ubicación y contacto
 *5.* 📅 Quiero reservar
-*6.* 💬 Otra pregunta
+*6.* 👨‍💼 Hablar con el asesor Oscar
 
-_Escribe el número de la opción_ ⬇️`;
+_Escribe el número de la opción o tu pregunta_ ⬇️`;
 
-const MENU_AUTOS = `🚗 *PRECIOS DE RENTA POR DÍA*
+const MENU_AUTOS = `🚗 *CATÁLOGO DE AUTOS Y PRECIOS*
 ─────────────────────
 
-*1.* Básico (sedán económico) — *$700*
-*2.* Confort (sedán amplio) — *$800*
-*3.* SUV de 5 pasajeros — *$1,200*
-*4.* SUV de 7 pasajeros — *$1,200*
-*5.* Minivan de 8 pasajeros — *$1,500*
-*6.* Van de 12-15 pasajeros — *$2,300*
+*1. Básico (sedán económico)* — *$700/día*
+   • March / Aveo o similar
+   • 4 pasajeros | 2 maletas | A/C | Gran rendimiento
 
-✅ Todos incluyen seguro amplio y km libre en la península 🏖️
+*2. Confort (sedán amplio)* — *$800/día*
+   • Versa / Vento / Onix
+   • 5 pasajeros | 3 maletas | Cajuela amplia | Confort
+
+*3. SUV de 5 pasajeros* — *$1,200/día*
+   • Creta / Duster / Soul
+   • 5 pasajeros | Mayor altura para caminos y cenotes
+
+*4. SUV de 7 pasajeros* — *$1,200/día*
+   • Toyota Rush / Ertiga XL7
+   • 7 pasajeros | 3 filas de asientos | Familiar
+
+*5. Minivan de 8 pasajeros* — *$1,500/día*
+   • Avanza / Sienna / Odyssey
+   • 8 pasajeros | Doble A/C | Gran espacio
+
+*6. Van de 12-15 pasajeros* — *$2,300/día*
+   • Toyota Hiace / Nissan Urvan
+   • 12 a 15 pasajeros | Ideal para grupos y excursiones
+
+─────────────────────
+✅ *Todos incluyen:* Seguro amplio + Km TOTALMENTE LIBRE 🏖️
+💳 *Sin bloqueos forzosos de tarjeta de crédito*
+📍 *Entrega en sucursal:* C. 28 × 25 y 23, Manuel Crescencio Rejón
+_(Entrega en hotel/Airbnb/Tren Maya con costo extra accesible)_
 
 _Escribe *5* o *reservar* para apartar tu auto_
 _Escribe *0* para volver al menú_`;
@@ -239,23 +314,23 @@ _Escribe *0* para volver al menú_`;
 const MENU_SEGUROS = `🛡️ *SEGUROS Y COBERTURAS*
 ─────────────────────
 
-✅ *Seguro amplio INCLUIDO:*
+✅ *Seguro amplio INCLUIDO en tu tarifa:*
 • 10% de deducible
-• Cubre: robo, pérdida total, colisión
-• Daños a terceros
-• Km libre en toda la península
+• Cubre: robo total, pérdida total, colisión
+• Daños a terceros y gastos médicos a ocupantes
+• Km TOTALMENTE LIBRE en toda la península
 
 💎 *Seguro Full Cover (opcional):*
 • Deducible baja a *0%*
-• Cubre vidrio, cristal o abolladura
-• Si pasa algo, *no pagas nada*
+• Cubre cristales, llantas y abolladuras
+• En caso de cualquier eventualidad, *no pagas nada*
 
 💰 *Costo del Full Cover por día:*
-• Básico — $400
-• Confort — $500
-• SUV de 5 y 7 — $500
-• Minivan de 8 — $600
-• Van de 12-15 — $1,000
+• Básico — $400/día
+• Confort — $500/día
+• SUV de 5 y 7 — $500/día
+• Minivan de 8 — $600/día
+• Van de 12-15 — $1,000/día
 
 _Escribe *5* o *reservar* para apartar_
 _Escribe *0* para volver al menú_`;
@@ -263,35 +338,53 @@ _Escribe *0* para volver al menú_`;
 const MENU_REQUISITOS = `📋 *REQUISITOS PARA RENTAR*
 ─────────────────────
 
-✈️ *Turista (vienes de fuera):*
-• INE o Pasaporte
-• Licencia de conducir vigente
-• Número de vuelo de llegada
+✈️ *Turistas (vienen de fuera de Mérida):*
+• INE, Pasaporte o Identificación oficial vigente
+• Licencia de conducir vigente (Nacional, Digital o Extranjera)
+• Número de vuelo o comprobante de llegada
 
-🏠 *Local (vives en Mérida):*
-• INE
+🏠 *Locales (residentes en Mérida):*
+• INE vigente
 • Licencia de conducir vigente
-• Comprobante de domicilio a tu nombre
+• Comprobante de domicilio a su nombre (luz, agua o teléfono)
 
-_Escribe *5* o *reservar* para apartar_
+─────────────────────
+💳 *Pagos:* Efectivo, tarjeta de débito/crédito o transferencia.
+🚫 *Sin bloqueos obligatorios de tarjeta de crédito.*
+
+_Escribe *5* o *reservar* para apartar tu auto_
 _Escribe *0* para volver al menú_`;
 
 const MENU_UBICACION = `📍 *UBICACIÓN Y CONTACTO*
 ─────────────────────
 
-📌 Manuel Crecencio Rejón, Mérida, Yucatán
-🕐 Abierto *24/7*, los 365 días
+🏢 *Oficina y Entrega Base:*
+📌 *C. 28 × 25 y 23, Manuel Crescencio Rejón, CP 97255, Mérida, Yucatán* (cerca de la zona del aeropuerto).
+🕐 Abierto *24/7*, los 365 días del año.
 
-📞 *Asesores:*
-• ${CONFIG.telefonos.asesor1}
-• ${CONFIG.telefonos.asesor2}
+🚗 *Entrega a Domicilio / Hotel:*
+• La entrega y devolución estándar se realiza en nuestra oficina.
+• Si requieres que te llevemos el vehículo a tu *Hotel*, *Airbnb*, *Aeropuerto* o *Estación del Tren Maya*, te lo llevamos directamente con un *costo extra accesible*.
+
+📞 *Asesores Directos:*
+• Oscar: ${CONFIG.telefonos.asesor1}
+• Asesoría 24/7: ${CONFIG.telefonos.asesor2}
 
 🌐 ${CONFIG.web}
 📧 ${CONFIG.email}
 
-🚗 Entregamos en tu *hotel* y *Tren Maya* en *40 min* ⚡
+_Escribe *0* para volver al menú principal_`;
 
-_Escribe *0* para volver al menú_`;
+const MENSAJE_ASESOR_OSCAR = `👨‍💼 *Atención Personalizada*
+─────────────────────
+
+En un momento te contacta el asesor *Oscar* para atenderte personalmente 📞
+
+📱 *Teléfonos directos:*
+• Oscar: ${CONFIG.telefonos.asesor1}
+• Asesoría 24/7: ${CONFIG.telefonos.asesor2}
+
+_Escribe *0* para ver el menú principal_`;
 
 const MENU_ELEGIR_AUTO = `🚗 *¿Qué auto te interesa?*
 ─────────────────────
@@ -712,29 +805,166 @@ _Escribe *0* para volver al menú_`;
     }
   }
 
+// ─── Detector Inteligente de Intenciones ───
+function detectarIntencion(texto) {
+  const t = texto.toLowerCase().trim();
+
+  // 1. Requisitos (Prioridad alta para no confundir con "rentar")
+  if (
+    t.includes('requisito') ||
+    t.includes('papeles') ||
+    t.includes('documento') ||
+    t.includes('licencia') ||
+    t.includes('edad') ||
+    t.includes('pasaporte') ||
+    t.includes('ine') ||
+    t.includes('que necesito') ||
+    t.includes('qué necesito') ||
+    t.includes('que piden') ||
+    t.includes('qué piden') ||
+    t.includes('que ocupo') ||
+    t.includes('qué ocupo')
+  ) {
+    return 'requisitos';
+  }
+
+  // 2. Precios / Cotización / Catálogo / Autos
+  if (
+    t.includes('precio') ||
+    t.includes('cuanto cuesta') ||
+    t.includes('cuánto cuesta') ||
+    t.includes('cuanto sale') ||
+    t.includes('cuánto sale') ||
+    t.includes('cotiza') ||
+    t.includes('catalogo') ||
+    t.includes('catálogo') ||
+    t.includes('que autos') ||
+    t.includes('qué autos') ||
+    t.includes('que carros') ||
+    t.includes('qué carros') ||
+    t.includes('modelos') ||
+    t.includes('flota') ||
+    t.includes('coches') ||
+    t.includes('carros') ||
+    t.includes('tarifas') ||
+    t.includes('costo')
+  ) {
+    return 'autos';
+  }
+
+  // 3. Ubicación / Dónde están / Contacto / Dirección
+  if (
+    t.includes('ubicacion') ||
+    t.includes('ubicación') ||
+    t.includes('donde estan') ||
+    t.includes('dónde están') ||
+    t.includes('donde quedan') ||
+    t.includes('dónde quedan') ||
+    t.includes('donde se encuentran') ||
+    t.includes('dónde se encuentran') ||
+    t.includes('direccion') ||
+    t.includes('dirección') ||
+    t.includes('sucursal') ||
+    t.includes('oficina') ||
+    t.includes('telefono') ||
+    t.includes('teléfono') ||
+    t.includes('contacto') ||
+    t.includes('como llego') ||
+    t.includes('cómo llego')
+  ) {
+    return 'ubicacion';
+  }
+
+  // 4. Seguros / Coberturas
+  if (
+    t.includes('seguro') ||
+    t.includes('cobertura') ||
+    t.includes('full cover') ||
+    t.includes('deducible') ||
+    t.includes('poliza') ||
+    t.includes('póliza') ||
+    t.includes('choque') ||
+    t.includes('danos a terceros') ||
+    t.includes('daños a terceros')
+  ) {
+    return 'seguros';
+  }
+
+  // 5. Contactar al asesor Oscar / Humano
+  if (
+    t.includes('asesor') ||
+    t.includes('oscar') ||
+    t.includes('humano') ||
+    t.includes('persona') ||
+    t.includes('hablar con alguien') ||
+    t.includes('agente') ||
+    t.includes('llamar')
+  ) {
+    return 'asesor';
+  }
+
+  // 6. Reservar / Apartar explícito
+  if (
+    t === '5' ||
+    t === 'reservar' ||
+    t === 'quiero reservar' ||
+    t === 'hacer reserva' ||
+    t === 'apartar' ||
+    t === 'quiero apartar' ||
+    t === 'rentar' ||
+    t === 'rentar auto' ||
+    t.startsWith('reservar ') ||
+    t.startsWith('apartar ')
+  ) {
+    return 'reservar';
+  }
+
+  return null;
+}
+
   // ══════════════════════════════════════════
-  // MENÚ PRINCIPAL (sin reserva activa)
+  // MENÚ Y ENRUTAMIENTO INTELIGENTE
   // ══════════════════════════════════════════
 
-  // Opción 1: Autos y precios
-  if (limpio === '1') return MENU_AUTOS;
+  const intencion = detectarIntencion(textoMensaje);
 
-  // Opción 2: Seguros
-  if (limpio === '2') return MENU_SEGUROS;
+  // Opción 1 o intención Autos/Precios/Cotización
+  if (limpio === '1' || intencion === 'autos') {
+    cancelarReserva(jid);
+    return MENU_AUTOS;
+  }
 
-  // Opción 3: Requisitos
-  if (limpio === '3') return MENU_REQUISITOS;
+  // Opción 2 o intención Seguros
+  if (limpio === '2' || intencion === 'seguros') {
+    cancelarReserva(jid);
+    return MENU_SEGUROS;
+  }
 
-  // Opción 4: Ubicación
-  if (limpio === '4') return MENU_UBICACION;
+  // Opción 3 o intención Requisitos
+  if (limpio === '3' || intencion === 'requisitos') {
+    cancelarReserva(jid);
+    return MENU_REQUISITOS;
+  }
 
-  // Opción 5 o "reservar" → iniciar flujo
-  if (limpio === '5' || limpio.includes('reservar') || limpio.includes('apartar') || limpio.includes('rentar')) {
+  // Opción 4 o intención Ubicación/Contacto
+  if (limpio === '4' || intencion === 'ubicacion') {
+    cancelarReserva(jid);
+    return MENU_UBICACION;
+  }
+
+  // Opción 6 o intención Asesor Oscar
+  if (limpio === '6' || intencion === 'asesor') {
+    cancelarReserva(jid);
+    return MENSAJE_ASESOR_OSCAR;
+  }
+
+  // Opción 5 o intención Reservar
+  if (limpio === '5' || intencion === 'reservar') {
     reserva.step = 'elegirAuto';
     return '📅 *¡Vamos a reservar!*\n\n' + MENU_ELEGIR_AUTO;
   }
 
-  // Opción 6 o cualquier otra cosa → IA
+  // Cualquier otra consulta libre o pregunta compleja → Asesor IA (Gemini)
   const respuestaIA = await obtenerRespuestaIA(textoMensaje, jid);
   return respuestaIA + '\n\n_Escribe *0* para ver el menú_';
 }
@@ -838,6 +1068,12 @@ async function iniciarBot() {
         if (msg.key.fromMe) continue;
         if (jid?.endsWith('@g.us')) continue;
         if (jid === 'status@broadcast') continue;
+
+        // 🚫 Si es contacto personal / excluido, ignorar para permitir chat manual
+        if (esContactoExcluido(jid)) {
+          console.log(`🔇 Contacto personal / excluido (${jid.split('@')[0]}): bot en silencio.`);
+          continue;
+        }
 
         const textoMensaje =
           msg.message?.conversation ||
