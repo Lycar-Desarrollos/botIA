@@ -65,6 +65,27 @@ function setupEventListeners() {
 
   // Excluded Contacts Form
   document.getElementById('form-add-excluded')?.addEventListener('submit', handleAddExcludedContact);
+
+  // Cotizador Manual Form & Inputs
+  setupCotizadorEventListeners();
+}
+
+function setupCotizadorEventListeners() {
+  const formCot = document.getElementById('form-cotizador-manual');
+  if (!formCot) return;
+
+  const selectAuto = document.getElementById('cot-select-auto');
+  const fechaInicio = document.getElementById('cot-fecha-inicio');
+  const fechaFin = document.getElementById('cot-fecha-fin');
+  const selectSeguro = document.getElementById('cot-select-seguro');
+
+  selectAuto.addEventListener('change', calculateManualQuote);
+  fechaInicio.addEventListener('change', calculateManualQuote);
+  fechaFin.addEventListener('change', calculateManualQuote);
+  selectSeguro.addEventListener('change', calculateManualQuote);
+
+  document.getElementById('btn-copy-wa-quote')?.addEventListener('click', copyWAQuoteText);
+  formCot.addEventListener('submit', handleSaveQuoteLead);
 }
 
 // ------------------------------------------------------------
@@ -509,6 +530,133 @@ function renderPriceForms() {
       <input type="text" name="ins_${idx}" value="${escapeHtml(item.precioDia)}" required>
     </div>
   `).join('');
+  // Populate Cotizador dropdown
+  populateCotizadorAutos();
+}
+
+function populateCotizadorAutos() {
+  const select = document.getElementById('cot-select-auto');
+  if (!select || !currentConfig) return;
+  select.innerHTML = currentConfig.autos.map((auto, idx) => `
+    <option value="${idx}">${escapeHtml(auto.tipo)} — ${auto.precioDia}/día</option>
+  `).join('');
+  calculateManualQuote();
+}
+
+let lastCalculatedQuote = null;
+
+function calculateManualQuote() {
+  if (!currentConfig) return;
+
+  const selectAuto = document.getElementById('cot-select-auto');
+  const fechaInicioInput = document.getElementById('cot-fecha-inicio');
+  const fechaFinInput = document.getElementById('cot-fecha-fin');
+  const selectSeguro = document.getElementById('cot-select-seguro');
+
+  const totalDisplay = document.getElementById('cot-total-display');
+  const detailDisplay = document.getElementById('cot-detail-display');
+
+  const autoIdx = parseInt(selectAuto.value || 0, 10);
+  const autoObj = currentConfig.autos[autoIdx] || currentConfig.autos[0];
+
+  const fInicio = new Date(fechaInicioInput.value);
+  const fFin = new Date(fechaFinInput.value);
+
+  if (isNaN(fInicio.getTime()) || isNaN(fFin.getTime()) || fFin < fInicio) {
+    totalDisplay.textContent = '$0 MXN';
+    detailDisplay.textContent = 'Selecciona una fecha de inicio y fin válidas';
+    lastCalculatedQuote = null;
+    return;
+  }
+
+  const diffTime = Math.abs(fFin - fInicio);
+  const dias = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+
+  const precioAutoNum = parseInt(autoObj.precioDia.replace(/[^0-9]/g, ''), 10) || 0;
+  const esFullCover = selectSeguro.value === 'full';
+  
+  // Find matching insurance
+  const seguroObj = currentConfig.seguros[autoIdx] || currentConfig.seguros[0];
+  const precioSegNum = esFullCover ? (parseInt(seguroObj?.precioDia?.replace(/[^0-9]/g, '') || 0, 10)) : 0;
+
+  const totalRenta = precioAutoNum * dias;
+  const totalSeguro = precioSegNum * dias;
+  const totalFinal = totalRenta + totalSeguro;
+
+  totalDisplay.textContent = `$${totalFinal.toLocaleString()} MXN`;
+  detailDisplay.textContent = `${autoObj.tipo} × ${dias} día(s) (${fechaInicioInput.value} al ${fechaFinInput.value}) | Renta: $${totalRenta.toLocaleString()} | Seguro: ${esFullCover ? `$${totalSeguro.toLocaleString()} MXN (Full Cover)` : 'Amplio Incluido'}`;
+
+  lastCalculatedQuote = {
+    auto: autoObj.tipo,
+    precioAutoDia: autoObj.precioDia,
+    dias,
+    fechaInicio: fechaInicioInput.value,
+    fechaFin: fechaFinInput.value,
+    fullCover: esFullCover,
+    totalRenta: `$${totalRenta.toLocaleString()} MXN`,
+    totalSeguro: esFullCover ? `$${totalSeguro.toLocaleString()} MXN` : 'Incluido (10% deducible)',
+    totalFinal: `$${totalFinal.toLocaleString()} MXN`
+  };
+}
+
+function copyWAQuoteText() {
+  if (!lastCalculatedQuote) return alert('Por favor completa las fechas para calcular la cotización primero.');
+
+  const nombre = document.getElementById('cot-nombre-cliente').value.trim() || 'Estimado cliente';
+  const textoWA = `🚗 *COTIZACIÓN CHIP RENT A CAR*
+─────────────────────
+Hola *${nombre}*, te compartimos tu cotización solicitada:
+
+• *Auto:* ${lastCalculatedQuote.auto}
+• *Periodo:* ${lastCalculatedQuote.fechaInicio} al ${lastCalculatedQuote.fechaFin} (${lastCalculatedQuote.dias} días)
+• *Renta Auto:* ${lastCalculatedQuote.totalRenta}
+• *Seguro:* ${lastCalculatedQuote.fullCover ? '🛡️ Full Cover 0% Deducible' : '🛡️ Seguro Amplio Incluido (10% deducible)'} (${lastCalculatedQuote.totalSeguro})
+─────────────────────
+💵 *TOTAL ESTIMADO: ${lastCalculatedQuote.totalFinal}*
+
+✨ *Incluye:* Kilometraje LIBRE en Yucatán, Quintana Roo y Campeche. Sin bloqueos obligatorios de tarjeta de crédito.
+
+📍 *Dirección:* C. 28 × 25 y 23, Manuel Crescencio Rejón, Mérida, Yuc.
+📞 *Reservas:* 999 958 8566 / 999 552 6896`;
+
+  navigator.clipboard.writeText(textoWA).then(() => {
+    alert('📋 ¡Texto de la cotización copiado al portapapeles! Ya puedes pegarlo en WhatsApp.');
+  }).catch(() => {
+    alert('No se pudo copiar automáticamente. Copia el texto manualmente.');
+  });
+}
+
+async function handleSaveQuoteLead(e) {
+  e.preventDefault();
+  if (!lastCalculatedQuote) return alert('Completa las fechas de la cotización.');
+
+  const nombre = document.getElementById('cot-nombre-cliente').value.trim() || 'Cotización Manual';
+  const telefono = document.getElementById('cot-telefono-cliente').value.trim() || 'Sin teléfono';
+
+  const payload = {
+    ...lastCalculatedQuote,
+    nombre,
+    telefono
+  };
+
+  try {
+    const res = await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert('🎉 ¡Cotización guardada exitosamente como Reserva Oficial en el Dashboard!');
+      loadDashboardData();
+      switchTab('leads');
+    } else {
+      alert('Error guardando la reserva.');
+    }
+  } catch (err) {
+    alert('Error de conexión con el servidor.');
+  }
 }
 
 async function handleSaveCarPrices(e) {

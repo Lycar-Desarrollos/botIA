@@ -205,6 +205,31 @@ app.get('/api/leads', requireAuth, (req, res) => {
   res.json(cargarLeads());
 });
 
+app.post('/api/leads', requireAuth, (req, res) => {
+  const leadData = req.body;
+  if (!leadData.auto || !leadData.fechaInicio || !leadData.fechaFin) {
+    return res.status(400).json({ error: 'Datos incompletos para crear reserva' });
+  }
+  const lead = {
+    jid: leadData.telefono ? `${leadData.telefono.replace(/\D/g, '')}@s.whatsapp.net` : 'manual@dashboard',
+    auto: leadData.auto,
+    precioAutoDia: leadData.precioAutoDia || '$0 MXN',
+    fullCover: !!leadData.fullCover,
+    dias: leadData.dias || 1,
+    fechaInicio: leadData.fechaInicio,
+    fechaFin: leadData.fechaFin,
+    nombre: leadData.nombre || 'Cotización Manual',
+    telefono: leadData.telefono || 'Sin teléfono',
+    totalRenta: leadData.totalRenta || '$0 MXN',
+    totalSeguro: leadData.totalSeguro || '$0 MXN',
+    totalFinal: leadData.totalFinal || '$0 MXN',
+    status: 'Pendiente',
+    timestamp: new Date().toISOString()
+  };
+  guardarLead(lead);
+  res.json({ success: true, lead });
+});
+
 app.put('/api/leads/status', requireAuth, (req, res) => {
   const { timestamp, status } = req.body;
   const ok = actualizarEstadoLead(timestamp, status);

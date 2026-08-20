@@ -90,6 +90,10 @@
           <i class="fa-solid fa-tags"></i>
           <span>Autos y Precios</span>
         </button>
+        <button class="nav-item" data-tab="cotizador">
+          <i class="fa-solid fa-calculator"></i>
+          <span>Cotizador Manual</span>
+        </button>
         <button class="nav-item" data-tab="excluded-contacts">
           <i class="fa-solid fa-user-slash"></i>
           <span>Contactos Personales</span>
@@ -342,6 +346,78 @@
               </form>
             </div>
 
+          </div>
+        </section>
+
+        <!-- TAB 3.5: COTIZADOR MANUAL Y GENERADOR DE RESERVAS -->
+        <section id="tab-cotizador" class="tab-page">
+          <div class="card-panel">
+            <div class="card-panel-header">
+              <div>
+                <h3>🧮 Cotizador Manual & Registro de Reservas</h3>
+                <p>Calcula cotizaciones al instante, guárdalas en la base de datos y genera la ficha para enviarla por WhatsApp</p>
+              </div>
+            </div>
+
+            <form id="form-cotizador-manual" class="mt-4" style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08);">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem;">
+                
+                <div class="form-group mb-0">
+                  <label><i class="fa-solid fa-car"></i> Categoría de Auto:</label>
+                  <select id="cot-select-auto" class="form-control" required style="background: #1e293b; color: #fff;">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+
+                <div class="form-group mb-0">
+                  <label><i class="fa-solid fa-calendar-day"></i> Fecha Inicio:</label>
+                  <input type="date" id="cot-fecha-inicio" class="form-control" required style="background: #1e293b; color: #fff;">
+                </div>
+
+                <div class="form-group mb-0">
+                  <label><i class="fa-solid fa-calendar-check"></i> Fecha Fin:</label>
+                  <input type="date" id="cot-fecha-fin" class="form-control" required style="background: #1e293b; color: #fff;">
+                </div>
+
+                <div class="form-group mb-0">
+                  <label><i class="fa-solid fa-shield-halved"></i> Cobertura de Seguro:</label>
+                  <select id="cot-select-seguro" class="form-control" style="background: #1e293b; color: #fff;">
+                    <option value="incluido">Amplio Incluido (Deducible 10%)</option>
+                    <option value="full">Full Cover (Deducible 0%)</option>
+                  </select>
+                </div>
+
+                <div class="form-group mb-0">
+                  <label><i class="fa-solid fa-user"></i> Nombre Cliente (opcional):</label>
+                  <input type="text" id="cot-nombre-cliente" class="form-control" placeholder="Ej: Juan Pérez">
+                </div>
+
+                <div class="form-group mb-0">
+                  <label><i class="fa-solid fa-phone"></i> WhatsApp Cliente (opcional):</label>
+                  <input type="text" id="cot-telefono-cliente" class="form-control" placeholder="Ej: 9991234567">
+                </div>
+
+              </div>
+
+              <!-- Live Quote Output Card -->
+              <div id="cot-result-box" class="mt-6 p-5" style="background: rgba(37, 99, 235, 0.1); border: 1.5px solid var(--accent-primary); border-radius: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                  <div>
+                    <span style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Cálculo Estimado</span>
+                    <h2 id="cot-total-display" style="font-size: 1.8rem; color: #10b981; font-weight: 800; margin: 4px 0;">$0 MXN</h2>
+                    <p id="cot-detail-display" style="font-size: 0.95rem; color: #cbd5e1; margin: 0;">Selecciona las fechas para calcular la tarifa total</p>
+                  </div>
+                  <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <button type="button" id="btn-copy-wa-quote" class="btn btn-outline" style="border-color: #22c55e; color: #4ade80;">
+                      <i class="fa-brands fa-whatsapp"></i> Copiar Texto para WA
+                    </button>
+                    <button type="submit" id="btn-save-quote-lead" class="btn btn-primary">
+                      <i class="fa-solid fa-floppy-disk"></i> Guardar como Reserva Oficial
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
           </div>
         </section>
 
