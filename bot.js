@@ -972,8 +972,11 @@ function detectarIntencion(texto) {
     t.includes('asesor') ||
     t.includes('oscar') ||
     t.includes('humano') ||
-    t.includes('persona') ||
+    t.includes('hablar con una persona') ||
+    t.includes('con una persona') ||
     t.includes('hablar con alguien') ||
+    t.includes('atencion humana') ||
+    t.includes('atención humana') ||
     t.includes('agente') ||
     t.includes('llamar')
   ) {
