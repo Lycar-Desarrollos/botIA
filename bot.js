@@ -739,7 +739,36 @@ async function obtenerRespuesta(textoMensaje, jid) {
     if (reserva.step === 'elegirFechas') {
       const fechas = parsearFechas(textoMensaje);
       if (!fechas) {
-        return '❌ No entendí las fechas. Intenta así:\n• _del 11 al 15 de julio_\n• _julio 11 al 15_\n• _11/07 al 15/07_';
+        // ¿El usuario preguntó por ubicación, requisitos, seguros, asesor, etc.?
+        const intencion = detectarIntencion(textoMensaje);
+        if (intencion === 'ubicacion') {
+          cancelarReserva(jid);
+          return MENU_UBICACION;
+        }
+        if (intencion === 'requisitos') {
+          cancelarReserva(jid);
+          return MENU_REQUISITOS;
+        }
+        if (intencion === 'seguros') {
+          cancelarReserva(jid);
+          return MENU_SEGUROS;
+        }
+        if (intencion === 'asesor') {
+          cancelarReserva(jid);
+          return MENSAJE_ASESOR_OSCAR;
+        }
+        if (intencion === 'autos') {
+          cancelarReserva(jid);
+          return MENU_AUTOS;
+        }
+
+        // Si es una pregunta libre sin fechas (ej: "¿aceptan débito?" o "¿dónde entregan?"), responder con la IA y recordar las fechas
+        if (textoMensaje.length > 3 && !textoMensaje.match(/\d/)) {
+          const respIA = await obtenerRespuestaIA(textoMensaje, jid);
+          return respIA + `\n\n📌 _Seguimos con tu reserva de *${reserva.data.auto ? reserva.data.auto.tipo : 'auto'}*. ¿Para qué fechas lo necesitas? (Ej: del 11 al 15 de septiembre)_\n_Escribe *0* para cancelar._`;
+        }
+
+        return '❌ No entendí las fechas. Intenta así:\n• _del 11 al 15 de septiembre_\n• _septiembre 11 al 15_\n• _11/09 al 15/09_\n\n_Escribe *0* para cancelar y ver el menú_';
       }
       const dias = diasEntre(fechas.inicio, fechas.fin);
       reserva.data.fechaInicio = fechas.inicio;
