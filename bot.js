@@ -673,29 +673,60 @@ function esMenuVolver(texto) {
 
 async function obtenerRespuestaIA(mensajeUsuario, jid) {
   const conv = getConv(jid);
-  conv.historial.push({ role: 'user', parts: [{ text: mensajeUsuario }] });
 
-  while (conv.historial.length > CONFIG.maxHistorial * 2) {
-    conv.historial.shift();
-  }
-
-  // Intentar secuencialmente con modelos de respaldo si uno agota cuota (429)
-  for (const modelName of MODEL_NAMES) {
-    try {
-      const modelInst = modelInstances[modelName] || genAI.getGenerativeModel({ model: modelName, systemInstruction: PROMPT_SISTEMA });
-      const chat = modelInst.startChat({ history: conv.historial.slice(0, -1) });
-      const result = await chat.sendMessage(mensajeUsuario);
-      const respuesta = result.response.text();
-
-      conv.historial.push({ role: 'model', parts: [{ text: respuesta }] });
-      return respuesta;
-    } catch (error) {
-      console.warn(`⚠️ Modelo ${modelName} en límite o con error (${error.message.substring(0, 80)}...). Probando siguiente respaldo...`);
+  // Sanitizar historial para asegurar alternancia estricta user -> model -> user
+  const historialLimpio = [];
+  let ultimoRol = null;
+  for (const h of conv.historial) {
+    if (h.role !== ultimoRol) {
+      historialLimpio.push(h);
+      ultimoRol = h.role;
     }
   }
 
-  // Fallback si todos los modelos fallan por cuota gratuita
-  conv.historial.pop();
+  // Si el último en el historial era 'user', removerlo del history para que sendMessage envíe el nuevo prompt
+  if (historialLimpio.length > 0 && historialLimpio[historialLimpio.length - 1].role === 'user') {
+    historialLimpio.pop();
+  }
+
+  // Limitar longitud
+  while (historialLimpio.length > CONFIG.maxHistorial * 2) {
+    historialLimpio.shift();
+  }
+
+  // Intentar secuencialmente con los modelos
+  for (const modelName of MODEL_NAMES) {
+    try {
+      const modelInst = modelInstances[modelName] || genAI.getGenerativeModel({ model: modelName, systemInstruction: PROMPT_SISTEMA });
+      const chat = modelInst.startChat({ history: historialLimpio });
+      const result = await chat.sendMessage(mensajeUsuario);
+      const respuesta = result.response.text();
+
+      // Guardar conversación exitosa
+      conv.historial.push({ role: 'user', parts: [{ text: mensajeUsuario }] });
+      conv.historial.push({ role: 'model', parts: [{ text: respuesta }] });
+      return respuesta;
+    } catch (error) {
+      console.warn(`⚠️ Modelo ${modelName} falló con historial (${error.message.substring(0, 80)}...). Probando consulta directa...`);
+      
+      // Respaldo 2: Consulta directa sin historial previo para evitar bloqueos de historial
+      try {
+        const modelInst = modelInstances[modelName] || genAI.getGenerativeModel({ model: modelName, systemInstruction: PROMPT_SISTEMA });
+        const result = await modelInst.generateContent(mensajeUsuario);
+        const respuesta = result.response.text();
+
+        conv.historial = [
+          { role: 'user', parts: [{ text: mensajeUsuario }] },
+          { role: 'model', parts: [{ text: respuesta }] }
+        ];
+        return respuesta;
+      } catch (errSingle) {
+        console.warn(`⚠️ Modelo ${modelName} en consulta directa también falló (${errSingle.message.substring(0, 80)}...).`);
+      }
+    }
+  }
+
+  // Respaldo final si todos los modelos fallan por cuota gratuita
   return `¡Anotado! En un momento te contacta el asesor *Oscar* para atenderte personalmente 📞\n\n📱 *Teléfonos directos:*\n• ${CONFIG.telefonos.asesor1}\n• ${CONFIG.telefonos.asesor2}`;
 }
 
