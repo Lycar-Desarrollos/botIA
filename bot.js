@@ -974,11 +974,35 @@ function detectarIntencion(texto) {
   // MENÚ Y ENRUTAMIENTO INTELIGENTE
   // ══════════════════════════════════════════
 
+  // 🚗 Si el usuario ya está viendo el catálogo MENU_AUTOS y selecciona un auto (1-6 o por nombre)
+  if (conv.ultimoMenuEnviado === 'MENU_AUTOS') {
+    const autoSeleccionado = detectarAuto(textoMensaje);
+    if (autoSeleccionado) {
+      conv.ultimoMenuEnviado = null;
+      reserva.data.auto = autoSeleccionado;
+      reserva.data.seguroInfo = precioFullCover(autoSeleccionado);
+      reserva.step = 'elegirFechas';
+
+      return `🚗 *${autoSeleccionado.tipo.toUpperCase()}* — *${autoSeleccionado.precioDia}*
+─────────────────────
+• *Modelos:* ${autoSeleccionado.modelos}
+• *Capacidad:* ${autoSeleccionado.pasajeros} | ${autoSeleccionado.equipaje}
+• *Prestaciones:* ${autoSeleccionado.caracteristicas}
+• *Seguro:* Amplio incluido (10% deducible) + Km LIBRE 🏖️
+
+📅 ¿Para qué fechas necesitas tu *${autoSeleccionado.tipo}*?
+_Ejemplo: del 22 al 30 de agosto_
+
+_Escribe *0* para cancelar y ver el menú_`;
+    }
+  }
+
   const intencion = detectarIntencion(textoMensaje);
 
   // Opción 1 o intención Autos/Precios/Cotización
   if (limpio === '1' || intencion === 'autos') {
     cancelarReserva(jid);
+    conv.ultimoMenuEnviado = 'MENU_AUTOS';
     return MENU_AUTOS;
   }
 
