@@ -620,7 +620,7 @@ IMPORTANTE: Responde de forma breve, amable y natural. Si el cliente pregunta al
 `.trim();
 }
 
-const MODEL_NAMES = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+const MODEL_NAMES = ['gemini-3.6-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 const modelInstances = {};
 
 MODEL_NAMES.forEach(m => {
