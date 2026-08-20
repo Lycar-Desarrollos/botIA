@@ -94,10 +94,6 @@
           <i class="fa-solid fa-user-slash"></i>
           <span>Contactos Personales</span>
         </button>
-        <button class="nav-item" data-tab="quotes">
-          <i class="fa-solid fa-file-contract"></i>
-          <span>Cotizador & Formato</span>
-        </button>
         <button class="nav-item" data-tab="bot-status">
           <i class="fa-brands fa-whatsapp"></i>
           <span>Estado WhatsApp</span>
@@ -400,190 +396,7 @@
           </div>
         </section>
 
-        <!-- TAB 5: COTIZADOR & FORMATO CLON OFICIAL -->
-        <section id="tab-quotes" class="tab-page">
-          <div class="card-panel">
-            <div class="card-panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-              <div>
-                <h3>📄 Cotizador & Formato Oficial de Reservación (Clon Imprimible)</h3>
-                <p>Genera e imprime cotizaciones y contratos con el formato oficial exacto de CHIP RENT A CAR.</p>
-              </div>
-              <div style="display: flex; gap: 0.5rem;">
-                <button type="button" id="btn-print-quote" class="btn btn-primary">
-                  <i class="fa-solid fa-print"></i> 🖨️ Imprimir / PDF
-                </button>
-              </div>
-            </div>
-
-            <!-- Cargar desde Lead Registrado -->
-            <div style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); padding: 1rem; border-radius: 12px; margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-              <div>
-                <strong style="color: #60a5fa;"><i class="fa-solid fa-bolt"></i> Auto-rellenado desde Lead Existente:</strong>
-                <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Selecciona una reserva registrada para llenar los datos en 1 clic</p>
-              </div>
-              <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <select id="select-lead-quote" class="form-control" style="max-width: 320px;">
-                  <option value="">-- Seleccionar cliente / lead --</option>
-                </select>
-                <button type="button" id="btn-autofill-quote" class="btn btn-secondary btn-sm">
-                  <i class="fa-solid fa-download"></i> Cargar Datos
-                </button>
-              </div>
-            </div>
-
-            <!-- Formulario Completo de Cotización -->
-            <form id="form-quote-generator" class="mt-6">
-              
-              <!-- Fila 1: Encabezado y Folio -->
-              <h4 style="color: #60a5fa; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
-                <i class="fa-solid fa-file-signature"></i> 1. Encabezado y Folio
-              </h4>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <div class="form-group mb-0">
-                  <label>Número de Folio:</label>
-                  <input type="text" id="q-folio" class="form-control" value="1000133" required>
-                </div>
-                <div class="form-group mb-0">
-                  <label>Fecha / Hora de Entrega:</label>
-                  <input type="text" id="q-fecha-entrega" class="form-control" placeholder="Ej: 30-01-2026 10:00 AM">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Fecha / Hora de Devolución:</label>
-                  <input type="text" id="q-fecha-devolucion" class="form-control" placeholder="Ej: 02-02-2026 05:00 PM">
-                </div>
-              </div>
-
-              <!-- Fila 2: Datos del Cliente -->
-              <h4 style="color: #60a5fa; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
-                <i class="fa-solid fa-user"></i> 2. Datos del Cliente / Arrendatario
-              </h4>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <div class="form-group mb-0">
-                  <label>Nombre Completo (NAME):</label>
-                  <input type="text" id="q-nombre" class="form-control" placeholder="Ej: QUIROZ FLORES JOSUE" required>
-                </div>
-                <div class="form-group mb-0">
-                  <label>Dirección / Address:</label>
-                  <input type="text" id="q-direccion" class="form-control" placeholder="Ej: C LA MINA 16">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Colonia:</label>
-                  <input type="text" id="q-colonia" class="form-control" placeholder="Ej: PBLO HUATECALCO">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Ciudad / City / Estado:</label>
-                  <input type="text" id="q-ciudad" class="form-control" placeholder="Ej: TLALTIZAPAN, MOR">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Código Postal (C.P.):</label>
-                  <input type="text" id="q-cp" class="form-control" placeholder="Ej: 62777">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Teléfono / Correo:</label>
-                  <input type="text" id="q-telefono" class="form-control" placeholder="Ej: 9991234567 / correo@email.com">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Licencia No. / Exp / Estado:</label>
-                  <input type="text" id="q-licencia" class="form-control" placeholder="Ej: C4900013643 - Venc: 24-02-2026 - Morelos">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Hotel / Lugar Hospedaje:</label>
-                  <input type="text" id="q-hotel" class="form-control" placeholder="Ej: Hotel Paseo de Montejo">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Vuelo Programado / Aerolínea:</label>
-                  <input type="text" id="q-vuelo" class="form-control" placeholder="Ej: Volaris Y4 782">
-                </div>
-              </div>
-
-              <!-- Fila 3: Vehículo y Precios -->
-              <h4 style="color: #60a5fa; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
-                <i class="fa-solid fa-car"></i> 3. Datos del Vehículo y Renta
-              </h4>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <div class="form-group mb-0">
-                  <label>Vehículo / Categoría:</label>
-                  <input type="text" id="q-vehiculo" class="form-control" placeholder="Ej: SEDAN STD / NISSAN VERSA" required>
-                </div>
-                <div class="form-group mb-0">
-                  <label>Color:</label>
-                  <input type="text" id="q-color" class="form-control" placeholder="Ej: Blanco / Plata">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Placas / License Plate:</label>
-                  <input type="text" id="q-placas" class="form-control" placeholder="Ej: YZA-123-B">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Tarifa Base por Día ($):</label>
-                  <input type="number" id="q-tarifa-dia" class="form-control" value="700" required>
-                </div>
-                <div class="form-group mb-0">
-                  <label>Total de Días:</label>
-                  <input type="number" id="q-dias" class="form-control" value="3" required>
-                </div>
-                <div class="form-group mb-0">
-                  <label>Cargo Cobertura Total ($):</label>
-                  <input type="text" id="q-cobertura-total" class="form-control" value="N/A">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Cargos Adicionales ($):</label>
-                  <input type="text" id="q-cargos-adicionales" class="form-control" value="N/A">
-                </div>
-                <div class="form-group mb-0">
-                  <label>% Deducible Seguro:</label>
-                  <input type="text" id="q-deducible" class="form-control" value="10 % SEGURO BASICO">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Depósito en Garantía ($):</label>
-                  <input type="text" id="q-deposito" class="form-control" value="0.0">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Total Final ($):</label>
-                  <input type="text" id="q-total" class="form-control" value="2,100" required>
-                </div>
-                <div class="form-group mb-0">
-                  <label>Vehículo Rentado en:</label>
-                  <input type="text" id="q-rentado-en" class="form-control" value="MERIDA APTO">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Vehículo Entregado en:</label>
-                  <input type="text" id="q-entregado-en" class="form-control" value="MERIDA APTO">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Forma de Pago:</label>
-                  <input type="text" id="q-forma-pago" class="form-control" placeholder="Ej: Efectivo / Tarjeta Débito">
-                </div>
-                <div class="form-group mb-0">
-                  <label>Nivel de Gasolina:</label>
-                  <select id="q-gasolina" class="form-control">
-                    <option value="E">Vacío (E)</option>
-                    <option value="1/4">1/4 Tanque</option>
-                    <option value="1/2" selected>1/2 Tanque</option>
-                    <option value="3/4">3/4 Tanque</option>
-                    <option value="F">Lleno (F)</option>
-                  </select>
-                </div>
-                <div class="form-group mb-0">
-                  <label>Kilometraje (Km):</label>
-                  <input type="text" id="q-km" class="form-control" placeholder="Ej: 050">
-                </div>
-              </div>
-
-              <div class="text-right">
-                <button type="button" id="btn-preview-quote" class="btn btn-secondary mr-2">
-                  <i class="fa-solid fa-eye"></i> Vista Previa
-                </button>
-                <button type="submit" class="btn btn-primary">
-                  <i class="fa-solid fa-print"></i> 🖨️ Generar e Imprimir Formato Oficial
-                </button>
-              </div>
-
-            </form>
-
-          </div>
-        </section>
-
-        <!-- TAB 6: ESTADO DE WHATSAPP -->
+        <!-- TAB 5: ESTADO DE WHATSAPP -->
         <section id="tab-bot-status" class="tab-page">
           <div class="card-panel text-center py-8">
             <div id="bot-status-big-icon" class="status-big-badge offline">
@@ -633,23 +446,7 @@
         <button class="btn btn-secondary" id="btn-modal-delete-lead" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">
           <i class="fa-solid fa-trash"></i> Eliminar Reserva
         </button>
-  <!-- Modal Quote Format Preview -->
-  <div id="modal-quote-preview" class="modal-backdrop hidden" style="z-index: 9999;">
-    <div class="modal-card glass-panel" style="max-width: 880px; width: 95%; max-height: 92vh; display: flex; flex-direction: column;">
-      <div class="modal-header" style="background: rgba(15,23,42,0.9); border-bottom: 1px solid rgba(255,255,255,0.1); padding: 1rem 1.5rem;">
-        <h3><i class="fa-solid fa-file-contract"></i> Vista Previa del Formato Oficial de Reservación</h3>
-        <button class="modal-close" id="btn-close-quote-modal">&times;</button>
-      </div>
-      <div class="modal-body" id="quote-preview-body" style="background: #cbd5e1; padding: 1.5rem; overflow-y: auto; flex: 1;">
-        <!-- Printable HTML format renders here -->
-      </div>
-      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; background: rgba(15,23,42,0.9); border-top: 1px solid rgba(255,255,255,0.1); padding: 1rem 1.5rem;">
-        <button class="btn btn-secondary" id="btn-close-quote-footer">Cerrar</button>
-        <div style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-primary" id="btn-modal-do-print">
-            <i class="fa-solid fa-print"></i> 🖨️ Imprimir / Guardar PDF
-          </button>
-        </div>
+        <button class="btn btn-secondary" id="btn-modal-close-footer">Cerrar</button>
       </div>
     </div>
   </div>
